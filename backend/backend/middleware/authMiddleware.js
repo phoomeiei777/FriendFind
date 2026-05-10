@@ -12,8 +12,8 @@ const requireAuth = async (req, res, next) => {
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET || "dev_secret");
     
-    // Check if user is banned
-    const [rows] = await db.execute("SELECT is_banned FROM users WHERE id = ? LIMIT 1", [payload.id]);
+    // Check if user is banned (if the column exists)
+    const [rows] = await db.execute("SELECT * FROM users WHERE id = ? LIMIT 1", [payload.id]);
     if (rows.length > 0 && rows[0].is_banned) {
       return res.status(403).json({ message: "Your account has been banned." });
     }
@@ -21,6 +21,7 @@ const requireAuth = async (req, res, next) => {
     req.user = payload;
     return next();
   } catch (_error) {
+    console.error("Auth Error:", _error);
     return res.status(401).json({ message: "Invalid or expired token." });
   }
 };

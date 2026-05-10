@@ -107,10 +107,19 @@ export default function SwipeScreen({ navigation }) {
     }).start(async () => {
       if (direction === 'right' && current) {
         if (token && currentUser?.id && current?.id) {
-          try { await recordSwipe(current.id, 'right'); } catch {}
+          try {
+            const res = await recordSwipe(current.id, 'right');
+            if (res && res.matched) {
+              setMatchedUser(current);
+              setShowMatch(true);
+              return;
+            }
+          } catch (e) {
+            console.warn('Swipe error:', e);
+          }
         }
-        setMatchedUser(current);
-        setShowMatch(true);
+        // If not matched or no token, move to next card immediately
+        goNext();
       } else {
         if (token && currentUser?.id && current?.id) {
           recordSwipe(current.id, 'left').catch(() => {});

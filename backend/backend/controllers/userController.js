@@ -31,9 +31,7 @@ const getAllUsers = async (req, res, next) => {
 const updateProfile = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { username, faculty, year, interests, profile_image_url } = req.body;
-
-    const updated = await updateUser(userId, { username, faculty, year, interests, profile_image_url });
+    const updated = await updateUser(userId, req.body);
     if (!updated) {
       return res.status(400).json({ message: "Nothing to update." });
     }

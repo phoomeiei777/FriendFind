@@ -71,12 +71,12 @@ export default function MatchOverlay({ visible, currentUser, matchedUser, select
 
       <Text style={styles.subtitle}>You found your study buddy!</Text>
 
-      <View style={styles.chatInputContainer}>
+      <TouchableOpacity style={styles.chatInputContainer} onPress={handleSendMessage} activeOpacity={0.8}>
         <Text style={styles.chatPlaceholder}>Message...</Text>
-        <TouchableOpacity style={styles.sendBtn} onPress={handleSendMessage}>
+        <View style={styles.sendBtn}>
           <Ionicons name="send" size={20} color="#FF4D67" />
-        </TouchableOpacity>
-      </View>
+        </View>
+      </TouchableOpacity>
 
       <TouchableOpacity onPress={onClose} style={styles.keepSwipingBtn}>
         <Text style={styles.keepSwipingText}>Keep Swiping</Text>

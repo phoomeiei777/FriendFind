@@ -75,7 +75,8 @@ const fetchAllUsers = async (excludeId) => {
 };
 
 const updateUser = async (userId, userData) => {
-  const { username, faculty, year, interests, profile_image_url, images,
+  let { profile_image_url } = userData;
+  const { username, faculty, year, interests, images,
           pronouns, gender, study_goal, looking_for, study_style, study_time, study_location, study_vibe, strength, weakness } = userData;
   const fields = [];
   const params = [];
