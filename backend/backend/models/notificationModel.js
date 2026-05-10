@@ -19,7 +19,7 @@ const getNotifications = async (userId) => {
   );
   return rows.map(row => ({
     ...row,
-    metadata: row.metadata ? JSON.parse(row.metadata) : null
+    metadata: row.metadata || null
   }));
 };
 
