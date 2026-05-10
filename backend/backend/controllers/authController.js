@@ -5,10 +5,11 @@ const {
   findUserByEmail,
   findUserByUsernameOrEmail,
 } = require("../models/userModel");
+const db = require("../config/db");
 
 const register = async (req, res, next) => {
   try {
-    const { username, email, password, faculty, year, interests, profile_image_url } = req.body;
+    const { username, email, password, phone, faculty, year, interests, profile_image_url } = req.body;
 
     if (!username || !email || !password) {
       return res.status(400).json({ message: "username, email, and password are required." });
@@ -23,6 +24,7 @@ const register = async (req, res, next) => {
     const userId = await createUser({
       username,
       email,
+      phone,
       passwordHash,
       faculty,
       year,
@@ -41,15 +43,25 @@ const register = async (req, res, next) => {
 
 const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { identity, password } = req.body; // เปลี่ยนจาก email เป็น identity (email or phone)
 
-    if (!email || !password) {
-      return res.status(400).json({ message: "email and password are required." });
+    if (!identity || !password) {
+      return res.status(400).json({ message: "identity (email/phone) and password are required." });
     }
 
-    const user = await findUserByEmail(email);
+    // ค้นหาจาก Email หรือ Phone
+    const [rows] = await db.execute(
+      "SELECT * FROM users WHERE email = ? OR phone = ? LIMIT 1",
+      [identity, identity]
+    );
+    
+    const user = rows[0];
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials." });
+    }
+
+    if (user.is_banned) {
+      return res.status(403).json({ message: "Your account has been banned. Please contact support." });
     }
 
     const isValid = await bcrypt.compare(password, user.password_hash);
@@ -70,6 +82,11 @@ const login = async (req, res, next) => {
         id: user.id,
         username: user.username,
         email: user.email,
+        phone: user.phone,
+        faculty: user.faculty,
+        year: user.year,
+        interests: user.interests,
+        profile_image_url: user.profile_image_url,
       },
     });
   } catch (error) {

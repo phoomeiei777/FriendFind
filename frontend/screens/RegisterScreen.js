@@ -1,19 +1,22 @@
-import React, { useState, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  Image, 
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
   TouchableOpacity,
-  SafeAreaView,
   TextInput,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Dimensions,
-  StatusBar
+  Modal,
+  Alert,
+  Animated
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 
@@ -21,7 +24,7 @@ const { width } = Dimensions.get('window');
 
 export default function RegisterScreen({ navigation }) {
   const [step, setStep] = useState(1);
-  
+
   // States
   const [phoneNumber, setPhoneNumber] = useState('');
   const [otp, setOtp] = useState(['', '', '', '']);
@@ -33,29 +36,161 @@ export default function RegisterScreen({ navigation }) {
   const [selectedGoals, setSelectedGoals] = useState([]);
   const [bio, setBio] = useState('');
 
+  const [actualOtp, setActualOtp] = useState('');
+  const [timeLeft, setTimeLeft] = useState(0);
+
+  const [countryCode, setCountryCode] = useState('+66');
+  const [showCountryCodePicker, setShowCountryCodePicker] = useState(false);
+  const COUNTRY_CODES = ['+66', '+1', '+81', '+44', '+91'];
+
+  // Custom Toast State (Dynamic Island)
+  const [toastMessage, setToastMessage] = useState('');
+  const islandWidth = useRef(new Animated.Value(125)).current;
+  const islandHeight = useRef(new Animated.Value(37)).current;
+  const contentOpacity = useRef(new Animated.Value(0)).current;
+
+  const showToast = (message) => {
+    setToastMessage(message);
+
+    // Expand the island
+    Animated.spring(islandWidth, {
+      toValue: width - 32, // Expand to almost full width
+      useNativeDriver: false,
+      friction: 8,
+      tension: 60,
+    }).start();
+
+    Animated.spring(islandHeight, {
+      toValue: 90, // Expand height further
+      useNativeDriver: false,
+      friction: 8,
+      tension: 60,
+    }).start();
+
+    Animated.timing(contentOpacity, {
+      toValue: 1,
+      duration: 250,
+      delay: 150, // Fade text in right after starting expansion
+      useNativeDriver: true,
+    }).start();
+
+    // Hide after 4 seconds
+    setTimeout(() => {
+      // Fade out text first
+      Animated.timing(contentOpacity, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }).start();
+
+      // Then shrink back to pill shape
+      setTimeout(() => {
+        Animated.spring(islandWidth, {
+          toValue: 125,
+          useNativeDriver: false,
+          friction: 9,
+          tension: 40,
+        }).start();
+
+        Animated.spring(islandHeight, {
+          toValue: 37,
+          useNativeDriver: false,
+          friction: 9,
+          tension: 40,
+        }).start();
+      }, 150);
+    }, 4000);
+  };
+
+  // UI States for Pickers
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [date, setDate] = useState(new Date());
+  const [showGenderPicker, setShowGenderPicker] = useState(false);
+
+  const GENDERS = ["Male", "Female", "Other", "Prefer not to say"];
+
+  useEffect(() => {
+    let timer;
+    if (timeLeft > 0) {
+      timer = setInterval(() => {
+        setTimeLeft(prev => prev - 1);
+      }, 1000);
+    } else if (timeLeft === 0 && actualOtp !== '') {
+      setActualOtp('');
+    }
+    return () => clearInterval(timer);
+  }, [timeLeft, actualOtp]);
+
+  const resendOtp = () => {
+    const generatedOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    setActualOtp(generatedOtp);
+    setTimeLeft(30);
+    setOtp(['', '', '', '']);
+    showToast(`Your OTP is: ${generatedOtp}`);
+  };
+
+  const handleDateChange = (event, selectedDate) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    if (selectedDate) {
+      setDate(selectedDate);
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const year = selectedDate.getFullYear();
+      setBirthday(`${day}/${month}/${year}`);
+    }
+  };
+
   const { register, login } = useApp();
   const GOALS = [
-    "Find study partners", "Stay motivated to study", 
-    "Prepare for exams together", "Improve my grades", 
-    "Join group study sessions", "Learn new skills"
+    { text: "Find study partners", icon: "people-outline" },
+    { text: "Stay motivated", icon: "flame-outline" },
+    { text: "Prepare for exams", icon: "document-text-outline" },
+    { text: "Improve my grades", icon: "trending-up-outline" },
+    { text: "Join group study", icon: "library-outline" },
+    { text: "Learn new skills", icon: "bulb-outline" }
   ];
 
   const handleNext = async () => {
-    if (step < 5) {
+    if (step === 1) {
+      if (phoneNumber.length < 9 || phoneNumber.length > 10) {
+        Alert.alert("Failed", "Please enter a valid phone number (9 or 10 digits).");
+        return;
+      }
+      const generatedOtp = Math.floor(1000 + Math.random() * 9000).toString();
+      setActualOtp(generatedOtp);
+      setTimeLeft(30);
+      setOtp(['', '', '', '']);
+      showToast(`รหัส OTP ของคุณคือ: ${generatedOtp}`);
+      setStep(2);
+    } else if (step === 2) {
+      const enteredOtp = otp.join('');
+      if (timeLeft === 0) {
+        Alert.alert("Expired", "Your OTP has expired. Please try again.");
+        return;
+      }
+      if (enteredOtp !== actualOtp) {
+        Alert.alert("Invalid OTP", "The code you entered is incorrect.");
+        return;
+      }
+      setStep(3);
+    } else if (step < 5) {
       setStep(step + 1);
     } else {
       try {
         const dummyEmail = `${phoneNumber}@friendfind.app`;
         await register({
-          username: name || phoneNumber || 'New User',
-          email: dummyEmail,
-          password: phoneNumber, // Use phone number as password
+          username: name || phoneNumber,
+          email: `${phoneNumber}@friendfind.app`, // ยังคงใช้ email จำลองเพื่อให้ระบบไม่พัง
+          phone: phoneNumber, // ✅ บันทึกเบอร์โทรศัพท์ลงฟิลด์ phone จริงๆ
+          password: phoneNumber, 
           faculty: major || 'N/A',
-          year: 1, // default
+          year: 1,
           interests: `Goals: ${selectedGoals.join(', ')} | Bio: ${bio}`,
           profile_image_url: ''
         });
-        
+
         // Auto-login after registration
         await login(dummyEmail, phoneNumber);
         navigation.replace('MainTabs'); // Finished registration
@@ -69,7 +204,7 @@ export default function RegisterScreen({ navigation }) {
     if (step > 1) {
       setStep(step - 1);
     } else {
-      navigation.navigate('Loader');
+      navigation.goBack();
     }
   };
 
@@ -89,16 +224,41 @@ export default function RegisterScreen({ navigation }) {
     setOtp(newOtp);
     if (text && index < 3) {
       otpRefs.current[index + 1].focus();
+    } else if (!text && index > 0) {
+      otpRefs.current[index - 1].focus();
     }
   };
 
   const renderStep1 = () => (
     <View style={styles.stepContainer}>
-      <Image source={require('../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+      <Image source={require('../assets/image.png')} style={styles.logo} resizeMode="contain" />
       <Text style={styles.questionTitle}>What's your phone number?</Text>
-      
-      <View style={styles.phoneInputContainer}>
-        <Text style={styles.countryCode}>+66</Text>
+
+      <View style={[styles.phoneInputContainer, { zIndex: 999 }]}>
+        <TouchableOpacity style={styles.countryCodeButton} onPress={() => setShowCountryCodePicker(!showCountryCodePicker)}>
+          <Text style={styles.countryCode}>{countryCode}</Text>
+          <Ionicons name="chevron-down" size={16} color="#4B5563" style={{ marginLeft: 4 }} />
+        </TouchableOpacity>
+
+        {/* Inline Relative Dropdown */}
+        {showCountryCodePicker && (
+          <View style={styles.inlineCountryDropdown}>
+            {COUNTRY_CODES.map((code, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[styles.inlineDropdownItem, countryCode === code && styles.inlineDropdownItemSelected]}
+                onPress={() => {
+                  setCountryCode(code);
+                  setShowCountryCodePicker(false);
+                }}
+              >
+                <Text style={[styles.inlineDropdownText, countryCode === code && styles.inlineDropdownTextSelected]}>{code}</Text>
+                {countryCode === code && <Ionicons name="checkmark-circle" size={16} color="#F58882" />}
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
         <View style={styles.dividerVertical} />
         <TextInput
           style={styles.input}
@@ -107,24 +267,20 @@ export default function RegisterScreen({ navigation }) {
           keyboardType="phone-pad"
           value={phoneNumber}
           onChangeText={setPhoneNumber}
-          autoFocus
+          autoFocus={true}
+          maxLength={10}
         />
       </View>
       <Text style={styles.helperText}>We'll send you a verification code to keep your account secure.</Text>
-      
-      <View style={styles.spacer} />
-      <TouchableOpacity style={styles.button} onPress={handleNext}>
-        <Text style={styles.buttonText}>Send code</Text>
-      </TouchableOpacity>
     </View>
   );
 
   const renderStep2 = () => (
     <View style={styles.stepContainer}>
-      <Image source={require('../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+      <Image source={require('../assets/image.png')} style={styles.logo} resizeMode="contain" />
       <Text style={styles.titleLarge}>ENTER YOUR CONFIRMATION CODE</Text>
-      <Text style={styles.subtitleGray}>Sent to: +66 {phoneNumber || '08xxxxxxxx'}</Text>
-      
+      <Text style={styles.subtitleGray}>Sent to: {countryCode} {phoneNumber || '08xxxxxxxx'}</Text>
+
       <View style={styles.otpContainer}>
         {otp.map((digit, index) => (
           <TextInput
@@ -138,15 +294,16 @@ export default function RegisterScreen({ navigation }) {
           />
         ))}
       </View>
-      
-      <TouchableOpacity>
-        <Text style={styles.resendText}>Didn't receive the code? Resend OTP</Text>
-      </TouchableOpacity>
 
-      <View style={styles.spacer} />
-      <TouchableOpacity style={styles.button} onPress={handleNext}>
-        <Text style={styles.buttonText}>CONTINUE</Text>
-      </TouchableOpacity>
+      {timeLeft > 0 ? (
+        <Text style={styles.timerText}>
+          Resend in <Text style={{ color: '#F58882', fontWeight: 'bold' }}>{timeLeft}</Text> seconds
+        </Text>
+      ) : (
+        <TouchableOpacity onPress={resendOtp}>
+          <Text style={styles.resendText}>Didn't receive the code? Resend OTP</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 
@@ -160,24 +317,30 @@ export default function RegisterScreen({ navigation }) {
       />
 
       <Text style={styles.inputLabel}>When's your birthday?</Text>
-      <View style={styles.formInputContainer}>
+      <TouchableOpacity style={styles.formInputContainer} onPress={() => setShowDatePicker(true)}>
         <TextInput
           style={styles.inputFlex}
           value={birthday}
-          onChangeText={setBirthday}
+          placeholder="Select your birthday"
+          placeholderTextColor="#9CA3AF"
+          editable={false}
+          pointerEvents="none"
         />
         <Ionicons name="calendar-outline" size={20} color="#000" />
-      </View>
+      </TouchableOpacity>
 
       <Text style={styles.inputLabel}>What gender are you?</Text>
-      <View style={styles.formInputContainer}>
+      <TouchableOpacity style={styles.formInputContainer} onPress={() => setShowGenderPicker(true)}>
         <TextInput
           style={styles.inputFlex}
           value={gender}
-          onChangeText={setGender}
+          placeholder="Select your gender"
+          placeholderTextColor="#9CA3AF"
+          editable={false}
+          pointerEvents="none"
         />
         <Ionicons name="chevron-down" size={20} color="#000" />
-      </View>
+      </TouchableOpacity>
 
       <Text style={styles.inputLabel}>What is your major?</Text>
       <TextInput
@@ -185,136 +348,271 @@ export default function RegisterScreen({ navigation }) {
         value={major}
         onChangeText={setMajor}
       />
-
-      <View style={styles.spacer} />
-      <TouchableOpacity style={styles.button} onPress={handleNext}>
-        <Text style={styles.buttonText}>CONTINUE</Text>
-      </TouchableOpacity>
     </View>
   );
 
   const renderStep4 = () => (
     <View style={styles.stepContainer}>
-      <View style={styles.headerRight}>
-         <TouchableOpacity onPress={handleNext}><Text style={styles.skipText}>Skip</Text></TouchableOpacity>
+      <View style={styles.headerRightAlt}>
+        <TouchableOpacity onPress={handleNext}>
+          <Text style={styles.skipText}>Skip</Text>
+        </TouchableOpacity>
       </View>
-      
-      <Text style={styles.titleCenter}>What are your goals?</Text>
-      <Text style={styles.counterText}>{selectedGoals.length}/5</Text>
-      
+
+      <Text style={styles.titleCenterAlt}>What are your main goals?</Text>
+      <Text style={styles.subtitleCenterAlt}>Select up to 5 goals to help us match you with the perfect study partners.</Text>
+
+      <View style={styles.counterBadge}>
+        <Text style={styles.counterBadgeText}>{selectedGoals.length}/5 Selected</Text>
+      </View>
+
       <View style={styles.goalsContainer}>
         {GOALS.map((goal, index) => {
-          const isSelected = selectedGoals.includes(goal);
+          const isSelected = selectedGoals.includes(goal.text);
           return (
-            <TouchableOpacity 
-              key={index} 
+            <TouchableOpacity
+              key={index}
               style={[styles.goalPill, isSelected && styles.goalPillSelected]}
-              onPress={() => toggleGoal(goal)}
+              onPress={() => toggleGoal(goal.text)}
+              activeOpacity={0.7}
             >
-              <Text style={[styles.goalText, isSelected && styles.goalTextSelected]}>{goal}</Text>
+              <Ionicons
+                name={isSelected ? goal.icon.replace('-outline', '') : goal.icon}
+                size={20}
+                color={isSelected ? '#F58882' : '#6B7280'}
+                style={{ marginRight: 8 }}
+              />
+              <Text style={[styles.goalText, isSelected && styles.goalTextSelected]}>{goal.text}</Text>
             </TouchableOpacity>
           );
         })}
       </View>
-
-      <View style={styles.spacer} />
-      <TouchableOpacity style={styles.button} onPress={handleNext}>
-        <Text style={styles.buttonText}>CONTINUE</Text>
-      </TouchableOpacity>
     </View>
   );
 
+  const [images, setImages] = useState([null, null, null, null, null, null]);
+
   const renderStep5 = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.titleCenter}>Add your first photo</Text>
-      <Text style={styles.subtitleCenter}>Select at least 1 photo</Text>
-      
+      <View style={styles.textHeaderContainer}>
+        <Text style={styles.titleStep5}>Show your best self</Text>
+        <Text style={styles.subtitleStep5}>Add at least 2 photos to stand out</Text>
+      </View>
+
       <View style={styles.photosGrid}>
-        {[0, 1, 2, 3, 4, 5].map((item) => (
-          <TouchableOpacity key={item} style={styles.photoBox}>
-            <Ionicons name="add" size={30} color="#F58882" />
+        {[1, 2, 3, 4, 5, 6].map((num, index) => (
+          <TouchableOpacity
+            key={num}
+            style={[
+              styles.photoBox,
+              index === 0 ? styles.mainPhotoBox : styles.smallPhotoBox,
+              styles.photoBoxEmpty
+            ]}
+          >
+            <View style={styles.photoNumberBadge}>
+              <Text style={styles.photoNumberText}>{num}</Text>
+            </View>
+
+            <View style={styles.addIconContainer}>
+              <Ionicons name="add" size={24} color="#FFF" />
+            </View>
           </TouchableOpacity>
         ))}
       </View>
 
-      <Text style={styles.titleCenterSmall}>Add a bio</Text>
-      <TextInput
-        style={styles.bioInput}
-        multiline
-        numberOfLines={4}
-        value={bio}
-        onChangeText={setBio}
-      />
-
-      <View style={styles.spacer} />
-      <TouchableOpacity style={styles.button} onPress={handleNext}>
-        <Text style={styles.buttonText}>Create Account</Text>
-      </TouchableOpacity>
+      <View style={styles.bioSection}>
+        <View style={styles.bioHeader}>
+          <Text style={styles.titleBio}>About Me</Text>
+          <Text style={styles.charCount}>{bio.length}/200</Text>
+        </View>
+        <TextInput
+          style={styles.bioInput}
+          multiline
+          placeholder="Share something interesting about yourself, your hobbies, or what you're looking for in a study partner..."
+          placeholderTextColor="#9CA3AF"
+          maxLength={200}
+          value={bio}
+          onChangeText={setBio}
+        />
+      </View>
     </View>
   );
 
   return (
-    <LinearGradient colors={['#FFFFFF', '#FECEE6']} style={{flex: 1}}>
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
-      >
-        <View style={styles.header}>
-          <TouchableOpacity 
-            onPress={handleBack} 
-            style={styles.backButton}
-            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-          >
-            <Ionicons name="chevron-back" size={28} color="#000" />
-          </TouchableOpacity>
-        </View>
+    <LinearGradient
+      colors={['#FFFFFF', '#FECEE6']}
+      style={styles.gradientBackground}
+    >
+      <SafeAreaView style={styles.safeArea}>
+        {/* Animated Dynamic Island Toast */}
+        <Animated.View style={[styles.dynamicToastContainer, { width: islandWidth, height: islandHeight }]}>
+          <Animated.View style={[styles.dynamicToastContent, { opacity: contentOpacity }]}>
+            <View style={styles.toastIcon}>
+              <Ionicons name="chatbubble-ellipses" size={20} color="#FFF" />
+            </View>
+            <View style={styles.toastContentText}>
+              <Text style={styles.toastTitle}>Messages</Text>
+              <Text style={styles.toastMessage}>{toastMessage}</Text>
+            </View>
+          </Animated.View>
+        </Animated.View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          {step === 1 && renderStep1()}
-          {step === 2 && renderStep2()}
-          {step === 3 && renderStep3()}
-          {step === 4 && renderStep4()}
-          {step === 5 && renderStep5()}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.container}
+        >
+          <View style={styles.header}>
+            <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+              <Ionicons name="chevron-back" size={28} color="#000" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.flexScrollView} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+            {step === 1 && renderStep1()}
+            {step === 2 && renderStep2()}
+            {step === 3 && renderStep3()}
+            {step === 4 && renderStep4()}
+            {step === 5 && renderStep5()}
+          </ScrollView>
+
+          {/* Date Picker Modal */}
+          {Platform.OS === 'ios' && showDatePicker && (
+            <Modal transparent animationType="slide">
+              <View style={styles.modalOverlay}>
+                <View style={styles.pickerContainer}>
+                  <View style={styles.pickerHeader}>
+                    <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                      <Text style={styles.pickerDoneText}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <DateTimePicker
+                    value={date}
+                    mode="date"
+                    display="spinner"
+                    onChange={handleDateChange}
+                    maximumDate={new Date()}
+                  />
+                </View>
+              </View>
+            </Modal>
+          )}
+          {Platform.OS === 'android' && showDatePicker && (
+            <DateTimePicker
+              value={date}
+              mode="date"
+              display="default"
+              onChange={handleDateChange}
+              maximumDate={new Date()}
+            />
+          )}
+
+          {/* Gender Picker Bottom Sheet Modal */}
+          {showGenderPicker && (
+            <Modal transparent animationType="fade" visible={showGenderPicker}>
+              <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowGenderPicker(false)}>
+                <View style={styles.dropdownContainer}>
+                  <Text style={styles.dropdownTitle}>Select Gender</Text>
+                  {GENDERS.map((item, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={[styles.dropdownItem, gender === item && styles.dropdownItemSelected]}
+                      onPress={() => {
+                        setGender(item);
+                        setShowGenderPicker(false);
+                      }}
+                    >
+                      <Text style={[styles.dropdownItemText, gender === item && styles.dropdownItemTextSelected]}>{item}</Text>
+                      {gender === item && <Ionicons name="checkmark-circle" size={24} color="#F58882" />}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </TouchableOpacity>
+            </Modal>
+          )}
+
+          {/* Fixed bottom button inside KeyboardAvoidingView to push up natively */}
+          <View style={styles.fixedBottomContainer}>
+            <TouchableOpacity style={styles.fixedButton} onPress={handleNext}>
+              <Text style={styles.buttonText}>
+                {step === 1 ? 'Send code' : step === 5 ? 'Create Account' : 'CONTINUE'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  gradientBackground: {
+    flex: 1,
+  },
+  dynamicToastContainer: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 12 : 15,
+    alignSelf: 'center',
+    backgroundColor: '#000000',
+    borderRadius: 30, // Ensures perfect pill shape when collapsing
+    overflow: 'hidden',
+    zIndex: 9999,
+    elevation: 10,
+    justifyContent: 'center',
+  },
+  dynamicToastContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    width: '100%',
+  },
+  toastIcon: {
+    backgroundColor: '#34D399', // SMS Green indicator
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  toastContentText: {
+    flex: 1,
+  },
+  toastTitle: {
+    color: '#FFF',
+    fontWeight: 'bold',
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  toastMessage: {
+    color: '#D1D5DB', // Light gray for subtler look
+    fontSize: 13,
+    lineHeight: 18,
+  },
   safeArea: {
     flex: 1,
-    backgroundColor: 'transparent',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    // background color removed to show gradient
   },
   container: {
     flex: 1,
   },
   header: {
     width: '100%',
-    alignItems: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 10,
+    zIndex: 10,
   },
   backButton: {
     padding: 8,
   },
-  headerRight: {
-    position: 'absolute',
-    top: -40,
-    right: 0,
-  },
-  skipText: {
-    color: '#9CA3AF',
-    fontSize: 16,
-    fontWeight: '600',
+  flexScrollView: {
+    flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingBottom: 40,
+    paddingBottom: 20, // Let the flex container breathe when button takes space natively
   },
   stepContainer: {
     flex: 1,
@@ -325,11 +623,6 @@ const styles = StyleSheet.create({
     height: 150,
     marginBottom: 20,
   },
-  spacer: {
-    flex: 1,
-    minHeight: 40,
-  },
-  // Step 1 & Common
   questionTitle: {
     fontSize: 16,
     fontWeight: '600',
@@ -348,6 +641,10 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: 16,
     marginBottom: 12,
+  },
+  countryCodeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   countryCode: {
     fontSize: 16,
@@ -369,21 +666,26 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     alignSelf: 'flex-start',
   },
-  button: {
+  fixedBottomContainer: {
+    paddingHorizontal: 24,
+    paddingTop: 10,
+    paddingBottom: Platform.OS === 'ios' ? 0 : 20, // SafeAreaView already handles iOS bottom, so 0 is perfect.
+    backgroundColor: 'transparent', // Match background to merge seamlessly
+  },
+  fixedButton: {
     backgroundColor: '#F58882',
     width: '100%',
     height: 55,
-    borderRadius: 25, // Rounded pill shape as seen in design
+    borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 20,
   },
   buttonText: {
     color: '#FFF',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  
+
   // Step 2
   titleLarge: {
     fontSize: 18,
@@ -401,13 +703,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     width: '100%',
     marginBottom: 20,
+    paddingHorizontal: 0,
   },
-  otpInput: {
-    width: 60,
-    height: 60,
+  otpInputSmall: {
+    width: 45,
+    height: 55,
     backgroundColor: '#FFF',
     borderRadius: 8,
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     textAlign: 'center',
     shadowColor: '#000',
@@ -415,11 +718,31 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 2,
   },
+  otpInput: {
+    width: 85, // ใหญ่ขึ้น
+    height: 85, // สูงขึ้น
+    backgroundColor: '#FFF',
+    borderRadius: 16, // มนสวยขึ้น
+    fontSize: 32, // ตัวเลขใหญ่ขึ้นเบ้อเริ่ม
+    fontWeight: '800',
+    textAlign: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
   resendText: {
     fontSize: 14,
     color: '#9CA3AF',
+    marginTop: 10,
   },
-  
+  timerText: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 10,
+  },
+
   // Step 3
   inputLabel: {
     fontSize: 15,
@@ -458,34 +781,59 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
   },
-  
+
   // Step 4
-  titleCenter: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000',
-    marginTop: 20,
-  },
-  counterText: {
-    fontSize: 12,
-    color: '#9CA3AF',
+  headerRightAlt: {
     alignSelf: 'flex-end',
     marginBottom: 10,
+  },
+  titleCenterAlt: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#111827',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitleCenterAlt: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+    paddingHorizontal: 10,
+  },
+  counterBadge: {
+    backgroundColor: '#F3F4F6',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  counterBadgeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#4B5563',
   },
   goalsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 10,
-    marginTop: 10,
+    gap: 12,
+    width: '100%',
   },
   goalPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#FFF',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    borderWidth: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderRadius: 24,
+    borderWidth: 1.5,
     borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   goalPillSelected: {
     borderColor: '#F58882',
@@ -493,57 +841,218 @@ const styles = StyleSheet.create({
   },
   goalText: {
     color: '#4B5563',
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '600',
   },
   goalTextSelected: {
     color: '#F58882',
+    fontWeight: '700',
   },
-  
-  // Step 5
-  subtitleCenter: {
-    fontSize: 14,
-    color: '#F58882',
-    marginTop: 4,
-    marginBottom: 20,
+
+  // --- สไตล์ที่ปรับปรุงใหม่สำหรับ Step 5 ---
+  textHeaderContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  titleStep5: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  subtitleStep5: {
+    fontSize: 15,
+    color: '#6B7280',
+    marginTop: 6,
   },
   photosGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
     width: '100%',
+    gap: 10, // ใช้ gap แทนการคำนวณ margin เอง (ถ้า React Native version รองรับ)
+    justifyContent: 'center', // จัดกลางเพื่อความสมดุล
   },
   photoBox: {
-    width: (width - 48 - 20) / 3, // Screen width minus padding minus gap
-    aspectRatio: 1,
+    borderRadius: 12,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  mainPhotoBox: {
+    width: '100%', // ปรับให้เต็มกว้างในแถวแรก
+    height: 180,
+    marginBottom: 5,
+  },
+  // ปรับขนาดรูปเล็ก 2-6 (แถวละ 3 รูป)
+  smallPhotoBox: {
+    width: (width - 48 - 20) / 3,
+    height: 120,
+  },
+  photoBoxEmpty: {
     backgroundColor: '#FFF',
-    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#F58882',
+    borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
   },
-  titleCenterSmall: {
-    fontSize: 16,
+  // สไตล์ปุ่มบวก (+)
+  addIconContainer: {
+    backgroundColor: '#F58882',
+    borderRadius: 100,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // Badge ตัวเลข (วงกลมสีเทา)
+  photoNumberBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: '#9CA3AF',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  photoNumberText: {
+    color: '#FFF',
+    fontSize: 10,
     fontWeight: 'bold',
-    color: '#000',
-    marginTop: 20,
+  },
+  // ส่วน About Me (สีขาวโค้งมน)
+  bioSection: {
+    width: '100%',
+    marginTop: 30,
+  },
+  bioHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 10,
+    paddingHorizontal: 4,
+  },
+  titleBio: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  charCount: {
+    fontSize: 12,
+    color: '#9CA3AF',
   },
   bioInput: {
     backgroundColor: '#FFF',
     width: '100%',
-    height: 100,
-    borderRadius: 8,
-    padding: 16,
+    minHeight: 125,
+    borderRadius: 20, // โค้งมนมากขึ้นตามภาพ
+    padding: 20,
     fontSize: 15,
+    color: '#374151',
     textAlignVertical: 'top',
+    // เงาที่นุ่มนวล
     shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 5,
+    shadowRadius: 10,
     elevation: 2,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  pickerContainer: {
+    backgroundColor: '#FFF',
+    paddingBottom: 30, // For iOS home indicator safe area
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  pickerHeader: {
+    width: '100%',
+    padding: 16,
+    alignItems: 'flex-end',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  pickerDoneText: {
+    color: '#F58882',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  dropdownContainer: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 40, // For Android/iOS safe area
+  },
+  inlineCountryDropdown: {
+    position: 'absolute',
+    top: 60, // Just below the phoneInputContainer height (55)
+    left: 0,
+    width: 140, // Snug size to hug the left corner
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 8,
+    zIndex: 9999, // Render over everything
+  },
+  inlineDropdownItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  inlineDropdownItemSelected: {
+    backgroundColor: '#FFF0F0',
+  },
+  inlineDropdownText: {
+    fontSize: 15,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  inlineDropdownTextSelected: {
+    color: '#F58882',
+    fontWeight: '700',
+  },
+  dropdownTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    marginBottom: 10,
+    backgroundColor: '#F9FAFB', // Light gray background for items
+  },
+  dropdownItemSelected: {
+    backgroundColor: '#FFF0F0', // Soft pink background to match theme
+    borderWidth: 1,
+    borderColor: '#FCE7F3',
+  },
+  dropdownItemText: {
+    fontSize: 16,
+    color: '#4B5563',
+    fontWeight: '500',
+  },
+  dropdownItemTextSelected: {
+    color: '#F58882',
+    fontWeight: '700',
   },
 });

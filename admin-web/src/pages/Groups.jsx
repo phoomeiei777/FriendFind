@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Trash2 } from 'lucide-react';
+import { Trash2, UsersRound, Calendar, User, BookOpen } from 'lucide-react';
 
-const API_URL = 'http://localhost:5000/api/admin';
+const API_URL = 'http://localhost:5001/api/admin';
 
 export default function Groups() {
   const [groups, setGroups] = useState([]);
@@ -26,9 +26,10 @@ export default function Groups() {
   };
 
   return (
-    <div>
+    <div className="groups-page">
       <div className="page-header">
         <h1 className="page-title">Study Group Management</h1>
+        <p className="page-subtitle">Monitor and manage user-created study groups</p>
       </div>
 
       <div className="card">
@@ -36,32 +37,55 @@ export default function Groups() {
           <table>
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Title</th>
+                <th width="80">ID</th>
+                <th>Group Title</th>
                 <th>Subject</th>
                 <th>Creator</th>
                 <th>Members</th>
-                <th>Actions</th>
+                <th width="120" style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {groups.map(group => (
                 <tr key={group.id}>
-                  <td>{group.id}</td>
-                  <td><strong>{group.title}</strong></td>
-                  <td>{group.subject_code} - {group.subject_name}</td>
-                  <td>{group.creator_name}</td>
-                  <td>{group.current_members} / {group.member_limit || '∞'}</td>
+                  <td className="text-muted">#{group.id}</td>
                   <td>
-                    <button onClick={() => handleDelete(group.id)} className="btn btn-danger">
-                      <Trash2 size={16} /> Delete
+                    <div className="fw-bold">{group.title}</div>
+                    <div className="text-muted" style={{ fontSize: 12 }}>
+                      <Calendar size={12} style={{ display: 'inline', marginRight: 4 }} />
+                      {new Date(group.created_at).toLocaleDateString()}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="badge badge-success" style={{ marginBottom: 4 }}>{group.subject_code}</div>
+                    <div style={{ fontSize: 13, fontWeight: 500 }}>{group.subject_name}</div>
+                  </td>
+                  <td>
+                    <div className="flex-align-center" style={{ gap: 8 }}>
+                      <User size={14} className="text-primary" />
+                      <span className="fw-bold">{group.creator_name}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span className={`badge ${group.current_members >= group.member_limit ? 'badge-danger' : 'badge-warning'}`}>
+                      {group.current_members} / {group.member_limit || '∞'}
+                    </span>
+                  </td>
+                  <td style={{ textAlign: 'right' }}>
+                    <button onClick={() => handleDelete(group.id)} className="btn-icon text-danger" title="Delete">
+                      <Trash2 size={18} />
                     </button>
                   </td>
                 </tr>
               ))}
               {groups.length === 0 && (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '32px' }}>No groups found.</td>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '64px' }}>
+                    <div className="empty-state">
+                      <UsersRound size={48} className="text-muted" />
+                      <p>No study groups found.</p>
+                    </div>
+                  </td>
                 </tr>
               )}
             </tbody>

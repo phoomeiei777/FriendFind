@@ -3,17 +3,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiFetch, authHeaders, getApiBase } from '../services/api';
 
 const STORAGE_SUBJECT = '@friendfind_active_subject';
-const STORAGE_TOKEN = '@friendfind_token';
-const STORAGE_USER = '@friendfind_user';
+const STORAGE_TOKEN   = '@friendfind_token';
+const STORAGE_USER    = '@friendfind_user';
 
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
   const [activeSubject, setActiveSubjectState] = useState(null);
   const [token, setToken] = useState(null);
-  const [user, setUser] = useState(null);
+  const [user, setUser]   = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Restore session from storage on mount
   useEffect(() => {
     (async () => {
       try {
@@ -22,8 +23,8 @@ export function AppProvider({ children }) {
           AsyncStorage.getItem(STORAGE_TOKEN),
           AsyncStorage.getItem(STORAGE_USER),
         ]);
-        if (subJson) setActiveSubjectState(JSON.parse(subJson));
-        if (tok) setToken(tok);
+        if (subJson)  setActiveSubjectState(JSON.parse(subJson));
+        if (tok)      setToken(tok);
         if (userJson) setUser(JSON.parse(userJson));
       } catch (e) {
         console.warn('Restore session failed', e);
@@ -33,6 +34,7 @@ export function AppProvider({ children }) {
     })();
   }, []);
 
+  // ─── Active Subject ────────────────────────────────────────────
   const setActiveSubject = useCallback(async (subject) => {
     setActiveSubjectState(subject);
     try {
@@ -46,10 +48,11 @@ export function AppProvider({ children }) {
     }
   }, []);
 
-  const login = useCallback(async (email, password) => {
+  // ─── Auth ──────────────────────────────────────────────────────
+  const login = useCallback(async (identity, password) => {
     const data = await apiFetch('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ identity, password }),
     });
     setToken(data.token);
     setUser(data.user);
@@ -62,24 +65,12 @@ export function AppProvider({ children }) {
     return data;
   }, []);
 
-  const register = useCallback(
-    async ({ username, email, password, faculty, year, interests, profile_image_url }) => {
-      const data = await apiFetch('/api/auth/register', {
-        method: 'POST',
-        body: JSON.stringify({
-          username,
-          email,
-          password,
-          faculty,
-          year,
-          interests,
-          profile_image_url,
-        }),
-      });
-      return data;
-    },
-    []
-  );
+  const register = useCallback(async ({ username, email, password, phone, faculty, year, interests, profile_image_url }) => {
+    return apiFetch('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ username, email, password, phone, faculty, year, interests, profile_image_url }),
+    });
+  }, []);
 
   const mockSetUser = useCallback(async (userData) => {
     setUser(userData);
@@ -100,88 +91,162 @@ export function AppProvider({ children }) {
     }
   }, []);
 
+  // ─── Subjects & Users ─────────────────────────────────────────
   const fetchSubjects = useCallback(async () => {
     return apiFetch('/api/subjects');
   }, []);
 
-  const fetchUsersByActiveSubject = useCallback(
-    async (subjectCode) => {
-      const code = encodeURIComponent(subjectCode);
-      return apiFetch(`/api/users/active-subject/${code}`);
-    },
-    []
-  );
-
   const fetchAllUsers = useCallback(async () => {
-    return apiFetch('/api/users');
+    return apiFetch('/api/users', { headers: authHeaders(token) });
+  }, [token]);
+
+  const fetchUsersByActiveSubject = useCallback(async (subjectCode) => {
+    return apiFetch(`/api/users/active-subject/${encodeURIComponent(subjectCode)}`);
   }, []);
 
-  const fetchGroups = useCallback(
-    async (subjectId) => {
-      const q = subjectId ? `?subject_id=${encodeURIComponent(subjectId)}` : '';
-      return apiFetch(`/api/groups${q}`);
-    },
-    []
-  );
+  const fetchUsersBySubject = useCallback(async (subjectCode) => {
+    return apiFetch(`/api/users/active-subject/${encodeURIComponent(subjectCode)}`);
+  }, []);
 
-  const createGroup = useCallback(
-    async (body) => {
-      return apiFetch('/api/groups', {
-        method: 'POST',
-        headers: authHeaders(token),
-        body: JSON.stringify(body),
-      });
-    },
-    [token]
-  );
+  // ─── Groups ───────────────────────────────────────────────────
+  const fetchGroups = useCallback(async (subjectId) => {
+    const q = subjectId ? `?subject_id=${encodeURIComponent(subjectId)}` : '';
+    return apiFetch(`/api/groups${q}`);
+  }, []);
 
-  const joinGroup = useCallback(
-    async (groupId) => {
-      return apiFetch(`/api/groups/${groupId}/join`, {
-        method: 'POST',
-        headers: authHeaders(token),
-      });
-    },
-    [token]
-  );
+  const fetchMyGroups = useCallback(async (subjectId) => {
+    const q = subjectId ? `?subject_id=${encodeURIComponent(subjectId)}` : '';
+    return apiFetch(`/api/groups/my${q}`, { headers: authHeaders(token) });
+  }, [token]);
 
-  const value = useMemo(
-    () => ({
-      loading,
-      activeSubject,
-      setActiveSubject,
-      token,
-      user,
-      login,
-      register,
-      mockSetUser,
-      logout,
-      fetchSubjects,
-      fetchAllUsers,
-      fetchUsersByActiveSubject,
-      fetchGroups,
-      createGroup,
-      joinGroup,
-      apiBase: getApiBase(),
-    }),
-    [
-      loading,
-      activeSubject,
-      setActiveSubject,
-      token,
-      user,
-      login,
-      register,
-      mockSetUser,
-      logout,
-      fetchSubjects,
-      fetchAllUsers,
-      fetchUsersByActiveSubject,
-      fetchGroups,
-      createGroup,
-      joinGroup,
-    ]
-  );
+  const createGroup = useCallback(async (body) => {
+    return apiFetch('/api/groups', {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify(body),
+    });
+  }, [token]);
+
+  const joinGroup = useCallback(async (groupId) => {
+    return apiFetch(`/api/groups/${groupId}/join`, {
+      method: 'POST',
+      headers: authHeaders(token),
+    });
+  }, [token]);
+
+  const fetchGroupMembers = useCallback(async (groupId, status) => {
+    const q = status ? `?status=${status}` : '';
+    return apiFetch(`/api/groups/${groupId}/members${q}`, { headers: authHeaders(token) });
+  }, [token]);
+
+  const updateMemberStatus = useCallback(async (groupId, userId, status) => {
+    return apiFetch(`/api/groups/${groupId}/members/${userId}`, {
+      method: 'PATCH',
+      headers: authHeaders(token),
+      body: JSON.stringify({ join_status: status }),
+    });
+  }, [token]);
+
+  const deleteGroup = useCallback(async (groupId) => {
+    return apiFetch(`/api/groups/${groupId}`, {
+      method: 'DELETE',
+      headers: authHeaders(token),
+    });
+  }, [token]);
+
+  const leaveGroup = useCallback(async (groupId) => {
+    return apiFetch(`/api/groups/${groupId}/leave`, {
+      method: 'POST',
+      headers: authHeaders(token),
+    });
+  }, [token]);
+
+  // ─── Matches ──────────────────────────────────────────────────
+  const recordSwipe = useCallback(async (targetId, direction) => {
+    return apiFetch('/api/matches/swipe', {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ target_id: targetId, direction }),
+    });
+  }, [token]);
+
+  const fetchMatches = useCallback(async () => {
+    return apiFetch('/api/matches', { headers: authHeaders(token) });
+  }, [token]);
+
+  // ─── Messages ─────────────────────────────────────────────────
+  const sendMessage = useCallback(async ({ room_id, target_user_id, content, image_url }) => {
+    return apiFetch('/api/messages', {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ room_id, target_user_id, content, image_url }),
+    });
+  }, [token]);
+
+  const fetchMessages = useCallback(async ({ room_id, target_user_id }) => {
+    const params = new URLSearchParams();
+    if (room_id)       params.append('room_id', room_id);
+    if (target_user_id) params.append('target_user_id', target_user_id);
+    return apiFetch(`/api/messages?${params.toString()}`, { headers: authHeaders(token) });
+  }, [token]);
+
+  // ─── Profile ──────────────────────────────────────────────────
+  const updateProfile = useCallback(async (fields) => {
+    const data = await apiFetch('/api/users/profile', {
+      method: 'PATCH',
+      headers: authHeaders(token),
+      body: JSON.stringify(fields),
+    });
+    if (data.user) {
+      setUser(data.user);
+      try {
+        await AsyncStorage.setItem(STORAGE_USER, JSON.stringify(data.user));
+      } catch (e) {
+        console.warn('AsyncStorage error:', e);
+      }
+    }
+    return data;
+  }, [token]);
+
+  // ─── Context Value ────────────────────────────────────────────
+  const value = useMemo(() => ({
+    loading,
+    activeSubject,
+    setActiveSubject,
+    token,
+    user,
+    login,
+    register,
+    mockSetUser,
+    logout,
+    fetchSubjects,
+    fetchAllUsers,
+    fetchUsersByActiveSubject,
+    fetchUsersBySubject,
+    fetchGroups,
+    fetchMyGroups,
+    createGroup,
+    joinGroup,
+    fetchGroupMembers,
+    updateMemberStatus,
+    deleteGroup,
+    leaveGroup,
+    recordSwipe,
+    fetchMatches,
+    sendMessage,
+    fetchMessages,
+    updateProfile,
+    apiBase: getApiBase(),
+    apiFetch,
+    authHeaders,
+  }), [
+    loading, activeSubject, setActiveSubject, token, user,
+    login, register, mockSetUser, logout,
+    fetchSubjects, fetchAllUsers, fetchUsersByActiveSubject, fetchUsersBySubject,
+    fetchGroups, fetchMyGroups, createGroup, joinGroup,
+    fetchGroupMembers, updateMemberStatus, deleteGroup, leaveGroup,
+    recordSwipe, fetchMatches, sendMessage, fetchMessages, updateProfile,
+  ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

@@ -20,6 +20,19 @@ exports.getUsers = async (req, res) => {
   }
 };
 
+exports.banUser = async (req, res) => {
+  const { id } = req.params;
+  const { is_banned } = req.body;
+  try {
+    const success = await adminModel.banUser(id, is_banned);
+    if (!success) return res.status(404).json({ message: "User not found" });
+    res.json({ message: is_banned ? "User banned" : "User unbanned" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 exports.deleteUser = async (req, res) => {
   try {
     const success = await adminModel.deleteUser(req.params.id);

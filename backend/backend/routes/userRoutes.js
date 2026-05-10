@@ -1,9 +1,22 @@
 const express = require("express");
-const { getUsersByActiveSubject, getAllUsers } = require("../controllers/userController");
+const { getUsersByActiveSubject, getAllUsers, updateProfile } = require("../controllers/userController");
+const { requireAuth } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
+// Optional auth middleware (ไม่บังคับ แต่ถ้ามี token จะ exclude ตัวเอง)
+const optionalAuth = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) return next();
+  const jwt = require("jsonwebtoken");
+  try {
+    req.user = jwt.verify(authHeader.split(" ")[1], process.env.JWT_SECRET || "dev_secret");
+  } catch (_) {}
+  next();
+};
+
 router.get("/active-subject/:subjectCode", getUsersByActiveSubject);
-router.get("/", getAllUsers);
+router.get("/", optionalAuth, getAllUsers);
+router.patch("/profile", requireAuth, updateProfile);
 
 module.exports = router;

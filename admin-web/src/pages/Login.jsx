@@ -23,15 +23,15 @@ export default function Login({ onLogin }) {
           <h2>Admin Login</h2>
           <p>Sign in to manage FriendFind</p>
         </div>
-        
+
         {error && <div className="login-error">{error}</div>}
-        
+
         <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">
             <label>Username</label>
-            <input 
-              type="text" 
-              value={username} 
+            <input
+              type="text"
+              value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Enter username"
               autoFocus
@@ -39,9 +39,9 @@ export default function Login({ onLogin }) {
           </div>
           <div className="form-group">
             <label>Password</label>
-            <input 
-              type="password" 
-              value={password} 
+            <input
+              type="password"
+              value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter password"
             />

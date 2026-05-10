@@ -7,35 +7,38 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ScrollView,
+  Image,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { colors } from '../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 
 export default function GroupDiscoveryScreen() {
-  const { activeSubject, fetchGroups, fetchUsersByActiveSubject } = useApp();
-  const [groups, setGroups] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { activeSubject, fetchMyGroups, fetchMatches } = useApp();
+  const { theme, isDark } = useTheme();
+  const navigation = useNavigation();
+
+  const [groups, setGroups]         = useState([]);
+  const [users, setUsers]           = useState([]);
+  const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTab, setSelectedTab] = useState('friends');
-  const [error, setError] = useState('');
-  const navigation = useNavigation();
+  const [error, setError]           = useState('');
 
   const load = useCallback(async () => {
     try {
       const subjectId = activeSubject?.id;
-      const groupPromise = fetchGroups(subjectId);
-      const userPromise = activeSubject
-        ? fetchUsersByActiveSubject(activeSubject.subject_code)
-        : Promise.resolve({ users: [] });
-
-      const [groupData, userData] = await Promise.all([groupPromise, userPromise]);
+      const [groupData, matchData] = await Promise.all([
+        fetchMyGroups(subjectId),
+        fetchMatches(),
+      ]);
       setGroups(groupData.groups || []);
-      setUsers(userData.users || []);
+      setUsers(matchData.matches || []);
       setError('');
     } catch (e) {
       console.warn(e);
@@ -46,22 +49,22 @@ export default function GroupDiscoveryScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeSubject, fetchGroups, fetchUsersByActiveSubject]);
+  }, [activeSubject, fetchMyGroups, fetchMatches]);
 
   useEffect(() => {
     setLoading(true);
     load();
   }, [load]);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    load();
-  };
+  const onRefresh = () => { setRefreshing(true); load(); };
 
   const handleOpenPrivateChat = (user) => {
     navigation.navigate('ChatDetail', {
       chatType: 'private',
       title: user.username || user.name || 'Friend',
+      subTitle: user.email || '',
+      members: [],
+      target_user_id: user.id,
     });
   };
 
@@ -69,105 +72,184 @@ export default function GroupDiscoveryScreen() {
     navigation.navigate('ChatDetail', {
       chatType: 'group',
       title: group.title || group.subject_name || 'Group Chat',
+      subTitle: group.subject_name || '',
+      members: group.members || [],
+      room_id: `group:${group.id}`,
     });
   };
 
   const activeData = selectedTab === 'friends' ? users : groups;
-  const emptyText = selectedTab === 'friends' ? 'No friends to chat with.' : 'No group chats available.';
+  const emptyText  = selectedTab === 'friends'
+    ? 'ยังไม่มีเพื่อน \nไปปัดหา Study Buddy กันก่อนเลย! 💕'
+    : 'No group chats available.';
+
+  const s = makeStyles(theme, isDark);
 
   return (
-    <LinearGradient colors={['#FFFFFF', '#FECEE6']} style={{flex: 1}}>
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.headerBar}>
-        <Text style={styles.title}>Chat</Text>
-        <TouchableOpacity style={styles.notificationButton}>
-          <MaterialCommunityIcons name="bell-outline" size={24} color={colors.text} />
-        </TouchableOpacity>
-      </View>
+    <LinearGradient colors={[theme.gradientStart, theme.gradientEnd]} style={{ flex: 1 }}>
+      <SafeAreaView style={s.safe} edges={['top']}>
 
-      <View style={styles.tabRow}>
-        <TouchableOpacity
-          style={[styles.tabItem, selectedTab === 'friends' && styles.tabSelected]}
-          onPress={() => setSelectedTab('friends')}
-        >
-          <Text style={[styles.tabText, selectedTab === 'friends' && styles.tabTextSelected]}>Friends</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabItem, selectedTab === 'groups' && styles.tabSelected]}
-          onPress={() => setSelectedTab('groups')}
-        >
-          <Text style={[styles.tabText, selectedTab === 'groups' && styles.tabTextSelected]}>Groups</Text>
-        </TouchableOpacity>
-      </View>
+        {/* Header */}
+        <View style={s.header}>
+          <Text style={s.headerTitle}>Chat</Text>
+          <TouchableOpacity style={s.bellBtn} onPress={() => navigation.navigate('Notifications')}>
+            <Ionicons name="notifications-outline" size={22} color={theme.icon} />
+            <View style={s.dot} />
+          </TouchableOpacity>
+        </View>
 
-      {error ? <Text style={styles.err}>{error}</Text> : null}
+        {/* Tabs */}
+        <View style={s.tabRow}>
+          <TouchableOpacity
+            style={[s.tabItem, selectedTab === 'friends' && s.tabSelected]}
+            onPress={() => setSelectedTab('friends')}
+          >
+            <Text style={[s.tabText, selectedTab === 'friends' && s.tabTextSelected]}>Friends</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.tabItem, selectedTab === 'groups' && s.tabSelected]}
+            onPress={() => setSelectedTab('groups')}
+          >
+            <Text style={[s.tabText, selectedTab === 'groups' && s.tabTextSelected]}>Groups</Text>
+          </TouchableOpacity>
+        </View>
 
-      {loading ? (
-        <ActivityIndicator size="large" color={colors.button} style={{ marginTop: 24 }} />
-      ) : (
-        <FlatList
-          data={activeData}
-          keyExtractor={(item, index) => String(item.id ?? item.title ?? index)}
-          contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.button} />
-          }
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.chatCard}
-              onPress={() => (selectedTab === 'friends' ? handleOpenPrivateChat(item) : handleOpenGroupChat(item))}
-            >
-              <View style={styles.avatar} />
-              <View style={styles.chatContent}>
-                <Text style={styles.chatName}>
-                  {selectedTab === 'friends' ? item.username || item.name || 'Friend' : item.title || item.subject_name || 'Group Chat'}
-                </Text>
-                <Text style={styles.chatLast}>
-                  {selectedTab === 'friends'
-                    ? 'Hello !'
-                    : item.subject_name
-                    ? `${item.subject_name} group chat`
-                    : 'Group conversation'}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          )}
-          ListEmptyComponent={<Text style={styles.empty}>{emptyText}</Text>}
-        />
-      )}
-    </SafeAreaView>
+        {/* Friends avatar row */}
+        {selectedTab === 'friends' && users.length > 0 && (
+          <View style={s.membersBar}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.membersScroll}>
+              {users.map((user, i) => (
+                <TouchableOpacity key={i} style={s.memberItem} onPress={() => handleOpenPrivateChat(user)}>
+                  <View style={s.memberAvatar}>
+                    {user?.profile_image_url
+                      ? <Image source={{ uri: user.profile_image_url }} style={s.memberAvatarImg} />
+                      : <Text style={s.memberAvatarText}>
+                          {user?.name?.charAt(0).toUpperCase() || user?.username?.charAt(0).toUpperCase() || '?'}
+                        </Text>
+                    }
+                  </View>
+                  <Text style={s.memberName} numberOfLines={1}>{user?.name || user?.username}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {error ? <Text style={s.err}>{error}</Text> : null}
+
+        {loading ? (
+          <ActivityIndicator size="large" color={theme.button} style={{ marginTop: 24 }} />
+        ) : (
+          <FlatList
+            data={activeData}
+            keyExtractor={(item, index) => String(item.id ?? item.title ?? index)}
+            contentContainerStyle={s.list}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.button} />}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={s.chatCard}
+                onPress={() => selectedTab === 'friends' ? handleOpenPrivateChat(item) : handleOpenGroupChat(item)}
+              >
+                {/* Avatar */}
+                <View style={s.avatarWrap}>
+                  {item?.profile_image_url ? (
+                    <Image source={{ uri: item.profile_image_url }} style={s.avatarImg} />
+                  ) : (
+                    <View style={s.avatar}>
+                      <Text style={s.avatarInitial}>
+                        {selectedTab === 'friends'
+                          ? (item.username || item.name || '?').charAt(0).toUpperCase()
+                          : (item.title || item.subject_name || '?').charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Group member badge */}
+                  {selectedTab === 'groups' && item.member_count > 0 && (
+                    <View style={s.memberBadge}>
+                      <Text style={s.memberBadgeText}>{item.member_count}</Text>
+                    </View>
+                  )}
+
+                  {/* Unread badge (placeholder) */}
+                  {selectedTab === 'friends' && (
+                    <View style={[s.memberBadge, { backgroundColor: '#FF4D4D', right: -2, top: -2, width: 18, height: 18 }]}>
+                      <Text style={[s.memberBadgeText, { fontSize: 9 }]}>1</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Chat info */}
+                <View style={s.chatContent}>
+                  <Text style={s.chatName}>
+                    {selectedTab === 'friends'
+                      ? item.username || item.name || 'Friend'
+                      : item.title || item.subject_name || 'Group Chat'}
+                  </Text>
+                  <Text style={s.chatLast}>
+                    {selectedTab === 'friends'
+                      ? (() => {
+                          if (item.matched_at) {
+                            const d = new Date(item.matched_at);
+                            return `❤️ Matched · ${d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' })}`;
+                          }
+                          return item.email || 'Study Buddy';
+                        })()
+                      : item.subject_name
+                        ? `${item.subject_name} · ${item.member_count || 0} members`
+                        : 'Group conversation'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={<Text style={s.empty}>{emptyText}</Text>}
+          />
+        )}
+      </SafeAreaView>
     </LinearGradient>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme, isDark) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: 'transparent' },
-  headerBar: {
+
+  // ─── Header ──────────────────────────────────────────────
+  header: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0E0EA',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    minHeight: 80,
   },
-  title: {
-    fontSize: 24,
+  headerTitle: {
+    fontSize: 28,
     fontWeight: '800',
-    color: colors.text,
+    color: theme.text,
   },
-  notificationButton: {
-    width: 44,
-    height: 44,
+  bellBtn: {
+    padding: 8,
+    backgroundColor: theme.surface,
     borderRadius: 14,
-    backgroundColor: '#F5F5F5',
-    justifyContent: 'center',
-    alignItems: 'center',
+    ...Platform.select({
+      ios:     { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: isDark ? 0.3 : 0.08, shadowRadius: 5 },
+      android: { elevation: 3 },
+    }),
   },
+  dot: {
+    position: 'absolute',
+    top: 7, right: 7,
+    width: 12, height: 12,
+    borderRadius: 50,
+    backgroundColor: '#F43F5E',
+    borderWidth: 1.5,
+    borderColor: theme.surface,
+  },
+
+  // ─── Tabs ─────────────────────────────────────────────────
   tabRow: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: theme.surface,
     marginHorizontal: 16,
     marginTop: 16,
     borderRadius: 16,
@@ -177,67 +259,78 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     alignItems: 'center',
-    backgroundColor: '#F9F2F7',
+    backgroundColor: theme.surfaceMuted,
   },
   tabSelected: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.surface,
     borderBottomWidth: 3,
-    borderBottomColor: colors.button,
+    borderBottomColor: theme.button,
   },
   tabText: {
-    color: colors.textMuted,
+    color: theme.textMuted,
     fontSize: 16,
     fontWeight: '700',
   },
   tabTextSelected: {
-    color: colors.text,
+    color: theme.text,
   },
-  err: {
-    color: '#c00',
-    marginHorizontal: 20,
-    marginTop: 10,
+
+  // ─── Friends avatar row ───────────────────────────────────
+  membersBar: { paddingVertical: 12, paddingHorizontal: 16 },
+  membersScroll: { gap: 12, paddingRight: 8 },
+  memberItem: { alignItems: 'center', gap: 6, width: 120 },
+  memberAvatar: {
+    width: 120, height: 150,
+    borderRadius: 16,
+    backgroundColor: '#F58882',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
   },
-  list: {
-    paddingHorizontal: 16,
-    paddingBottom: 32,
-    paddingTop: 12,
-  },
+  memberAvatarImg:  { width: 120, height: 150, borderRadius: 16 },
+  memberAvatarText: { color: '#FFF', fontWeight: '700', fontSize: 20 },
+  memberName: { fontSize: 11, color: theme.textMuted, width: 70, textAlign: 'center' },
+
+  // ─── Chat List ────────────────────────────────────────────
+  err:  { color: '#c00', marginHorizontal: 20, marginTop: 10 },
+  list: { paddingHorizontal: 16, paddingBottom: 32, paddingTop: 12 },
   chatCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: theme.surface,
     borderRadius: 18,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 2,
+    ...Platform.select({
+      ios:     { shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: isDark ? 0.3 : 0.08, shadowRadius: 12 },
+      android: { elevation: 2 },
+    }),
   },
+  avatarWrap:    { position: 'relative', marginRight: 14 },
   avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#000',
-    marginRight: 14,
+    width: 52, height: 52,
+    borderRadius: 100,
+    backgroundColor: '#F58882',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  chatContent: {
-    flex: 1,
+  avatarImg:     { width: 52, height: 52, borderRadius: 26 },
+  avatarInitial: { color: '#FFF', fontSize: 20, fontWeight: '700' },
+  memberBadge: {
+    position: 'absolute',
+    bottom: -2, right: -2,
+    backgroundColor: '#4DB8FF',
+    borderRadius: 10,
+    minWidth: 20, height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: theme.surface,
   },
-  chatName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  chatLast: {
-    marginTop: 6,
-    fontSize: 14,
-    color: colors.textMuted,
-  },
-  empty: {
-    textAlign: 'center',
-    color: colors.textMuted,
-    padding: 24,
-  },
+  memberBadgeText: { color: '#FFF', fontSize: 10, fontWeight: '800' },
+  chatContent:     { flex: 1 },
+  chatName: { fontSize: 18, fontWeight: '700', color: theme.text },
+  chatLast: { marginTop: 6, fontSize: 14, color: theme.textMuted },
+  empty:    { textAlign: 'center', color: theme.textMuted, padding: 24 },
 });

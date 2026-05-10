@@ -4,16 +4,40 @@ const getDashboardStats = async () => {
   const [[usersCount]] = await db.execute("SELECT COUNT(*) as count FROM users");
   const [[groupsCount]] = await db.execute("SELECT COUNT(*) as count FROM study_groups");
   const [[subjectsCount]] = await db.execute("SELECT COUNT(*) as count FROM subjects");
+  
+  // Total Matches: Count unique pairs (m.status = 'matched')
+  // Since each match has 2 rows (A->B and B->A), we divide by 2
+  const [[matchesCount]] = await db.execute("SELECT COUNT(*) / 2 as count FROM matches WHERE status = 'matched'");
+  
+  // Top Matched Subjects: Subjects associated with users who have matches
+  const [topSubjects] = await db.execute(`
+    SELECT s.subject_name, COUNT(*) as count
+    FROM matches m
+    JOIN user_subjects us ON m.swiper_id = us.user_id
+    JOIN subjects s ON us.subject_id = s.id
+    WHERE m.status = 'matched'
+    GROUP BY s.id
+    ORDER BY count DESC
+    LIMIT 5
+  `);
+
   return {
     totalUsers: usersCount.count,
     totalGroups: groupsCount.count,
-    totalSubjects: subjectsCount.count
+    totalSubjects: subjectsCount.count,
+    totalMatches: Math.floor(matchesCount.count || 0),
+    topSubjects
   };
 };
 
 const getAllUsers = async () => {
-  const [rows] = await db.execute("SELECT id, username, email, phone, faculty, `year`, profile_image_url, created_at FROM users ORDER BY created_at DESC");
+  const [rows] = await db.execute("SELECT id, username, email, phone, faculty, `year`, profile_image_url, is_banned, created_at FROM users ORDER BY created_at DESC");
   return rows;
+};
+
+const banUser = async (id, isBanned) => {
+  const [result] = await db.execute("UPDATE users SET is_banned = ? WHERE id = ?", [isBanned, id]);
+  return result.affectedRows > 0;
 };
 
 const deleteUser = async (id) => {
@@ -63,6 +87,7 @@ const deleteGroup = async (id) => {
 module.exports = {
   getDashboardStats,
   getAllUsers,
+  banUser,
   deleteUser,
   getAllSubjects,
   createSubject,

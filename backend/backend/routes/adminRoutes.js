@@ -4,6 +4,7 @@ const router = express.Router();
 
 router.get("/dashboard", adminController.getDashboardStats);
 router.get("/users", adminController.getUsers);
+router.put("/users/:id/ban", adminController.banUser);
 router.delete("/users/:id", adminController.deleteUser);
 router.get("/subjects", adminController.getSubjects);
 router.post("/subjects", adminController.createSubject);

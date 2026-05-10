@@ -2,8 +2,8 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
 /** พอร์ตเดียวกับ backend (docker-compose BACKEND_PORT / server PORT) */
-const DEFAULT_PORT = 5000;
-const DEFAULT_WEB = `http://localhost:${DEFAULT_PORT}`;
+const DEFAULT_PORT = 5001;
+const DEFAULT_WEB = `http://127.0.0.1:${DEFAULT_PORT}`;
 
 /**
  * ลำดับการเลือก API base:

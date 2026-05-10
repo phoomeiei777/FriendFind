@@ -1,33 +1,34 @@
 {
   "expo": {
-    "name": "frontend",
+    "name": "FriendFind",
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/image1.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
+      "image": "./assets/image1.png",
+      "resizeMode": "cover",
       "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "package": "com.anonymous.frontend",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "package": "com.anonymous.frontend"
+        "foregroundImage": "./assets/image1.png",
+        "backgroundColor": "#ffffff"
+      }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/image1.png"
     },
     "extra": {
-      "apiBaseWeb": "http://localhost:5000"
-    }
+      "apiBaseWeb": "http://127.0.0.1:5001"
+    },
+    "plugins": [
+      "@react-native-community/datetimepicker"
+    ]
   }
 }
