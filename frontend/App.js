@@ -4,6 +4,7 @@ import { AppProvider } from './context/AppContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import AppNavigator from './navigation/AppNavigator';
 import { View, StyleSheet, Platform } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const FakeDynamicIsland = () => (
   <View pointerEvents="none" style={styles.dynamicIslandWrapper}>
@@ -24,13 +25,15 @@ function AppWrapper() {
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <AppProvider>
-          <AppWrapper />
-        </AppProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <AppProvider>
+            <AppWrapper />
+          </AppProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 

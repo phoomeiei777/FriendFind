@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Trash2, Plus, BookOpen, Hash, CaseSensitive } from 'lucide-react';
+import { Trash2, Plus, BookOpen, Hash, CaseSensitive, Edit } from 'lucide-react';
 
 const API_URL = 'http://localhost:5001/api/admin';
 
@@ -8,6 +8,7 @@ export default function Subjects() {
   const [subjects, setSubjects] = useState([]);
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
+  const [editId, setEditId] = useState(null);
 
   const fetchSubjects = () => {
     axios.get(`${API_URL}/subjects`)
@@ -27,17 +28,34 @@ export default function Subjects() {
     }
   };
 
-  const handleAdd = (e) => {
+  const handleEditClick = (subject) => {
+    setEditId(subject.id);
+    setCode(subject.subject_code);
+    setName(subject.subject_name);
+  };
+
+  const handleAddOrUpdate = (e) => {
     e.preventDefault();
     if (!code || !name) return alert("Please fill all fields");
 
-    axios.post(`${API_URL}/subjects`, { subject_code: code, subject_name: name })
-      .then(() => {
-        setCode('');
-        setName('');
-        fetchSubjects();
-      })
-      .catch(err => alert("Error adding subject (Code might already exist)"));
+    if (editId) {
+      axios.put(`${API_URL}/subjects/${editId}`, { subject_code: code, subject_name: name })
+        .then(() => {
+          setCode('');
+          setName('');
+          setEditId(null);
+          fetchSubjects();
+        })
+        .catch(err => alert("Error updating subject"));
+    } else {
+      axios.post(`${API_URL}/subjects`, { subject_code: code, subject_name: name })
+        .then(() => {
+          setCode('');
+          setName('');
+          fetchSubjects();
+        })
+        .catch(err => alert("Error adding subject (Code might already exist)"));
+    }
   };
 
   return (
@@ -47,22 +65,17 @@ export default function Subjects() {
         <p className="page-subtitle">Configure courses and subjects for matching</p>
       </div>
 
-      {/* Add Subject Card */}
+      {/* Add/Edit Subject Card */}
       <div className="card" style={{ marginBottom: 24 }}>
         <div className="card-header-simple">
           <BookOpen size={20} style={{ color: 'var(--primary)' }} />
-          <h3>Add New Subject</h3>
+          <h3>{editId ? 'Edit Subject' : 'Add New Subject'}</h3>
         </div>
 
-        <form onSubmit={handleAdd} className="add-subject-form">
-          {/*
-            align-items: flex-end makes all children bottom-align.
-            Labels push inputs down naturally — button has no label so it sits flush at the bottom.
-            This avoids any padding/margin hacks.
-          */}
+        <form onSubmit={handleAddOrUpdate} className="add-subject-form">
           <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end' }}>
 
-            {/* Subject Code — fixed width */}
+            {/* Subject Code */}
             <div style={{ width: 180, flexShrink: 0 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>
                 <Hash size={13} /> Subject Code
@@ -76,7 +89,7 @@ export default function Subjects() {
               />
             </div>
 
-            {/* Subject Name — grows to fill */}
+            {/* Subject Name */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>
                 <CaseSensitive size={13} /> Subject Name
@@ -90,10 +103,15 @@ export default function Subjects() {
               />
             </div>
 
-            {/* Button — no label, bottom-aligns via flex-end */}
-            <div style={{ flexShrink: 0 }}>
+            {/* Button */}
+            <div style={{ flexShrink: 0, display: 'flex', gap: 8 }}>
+              {editId && (
+                <button type="button" className="btn btn-secondary" onClick={() => { setEditId(null); setCode(''); setName(''); }}>
+                  Cancel
+                </button>
+              )}
               <button type="submit" className="btn btn-primary">
-                <Plus size={18} /> Add Subject
+                {editId ? <><Edit size={18} /> Update Subject</> : <><Plus size={18} /> Add Subject</>}
               </button>
             </div>
 
@@ -111,7 +129,7 @@ export default function Subjects() {
                 <th style={{ width: 150 }}>Code</th>
                 <th>Subject Name</th>
                 <th className="text-center" style={{ width: 180 }}>Enrolled Users</th>
-                <th className="text-right" style={{ width: 100 }}>Actions</th>
+                <th className="text-right" style={{ width: 120 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -124,9 +142,14 @@ export default function Subjects() {
                     <span className="badge badge-warning">{subject.enrolled_count} Users</span>
                   </td>
                   <td className="text-right">
-                    <button onClick={() => handleDelete(subject.id)} className="btn-icon" title="Delete">
-                      <Trash2 size={16} />
-                    </button>
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                      <button onClick={() => handleEditClick(subject)} className="btn-icon" title="Edit">
+                        <Edit size={16} />
+                      </button>
+                      <button onClick={() => handleDelete(subject.id)} className="btn-icon text-danger" title="Delete">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

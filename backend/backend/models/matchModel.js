@@ -76,5 +76,16 @@ const getSwipedIds = async (userId) => {
   );
   return rows.map((r) => r.target_id);
 };
+/**
+ * ยกเลิกการ Match (ลบข้อมูลออกจากตารางเพื่อให้สามารถวนมาเจอกันได้อีก)
+ */
+const unmatchUser = async (userId, targetId) => {
+  const [result] = await db.execute(
+    `DELETE FROM matches 
+     WHERE (swiper_id = ? AND target_id = ?) OR (swiper_id = ? AND target_id = ?)`,
+    [userId, targetId, targetId, userId]
+  );
+  return result.affectedRows > 0;
+};
 
-module.exports = { recordSwipe, getMatches, getSwipedIds };
+module.exports = { recordSwipe, getMatches, getSwipedIds, unmatchUser };

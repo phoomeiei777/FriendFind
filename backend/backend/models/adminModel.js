@@ -84,6 +84,11 @@ const deleteGroup = async (id) => {
   return result.affectedRows > 0;
 };
 
+const updateSubject = async (id, subjectCode, subjectName) => {
+  const [result] = await db.execute("UPDATE subjects SET subject_code = ?, subject_name = ? WHERE id = ?", [subjectCode, subjectName, id]);
+  return result.affectedRows > 0;
+};
+
 module.exports = {
   getDashboardStats,
   getAllUsers,
@@ -91,6 +96,7 @@ module.exports = {
   deleteUser,
   getAllSubjects,
   createSubject,
+  updateSubject,
   deleteSubject,
   getAllGroups,
   deleteGroup

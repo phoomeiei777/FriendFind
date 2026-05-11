@@ -9,6 +9,7 @@ const adminRoutes = require("./routes/adminRoutes");
 const matchRoutes = require("./routes/matchRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const reportRoutes = require("./routes/reportRoutes");
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/matches", matchRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/reports", reportRoutes);
 
 app.use((err, _req, res, _next) => {
   console.error(err);

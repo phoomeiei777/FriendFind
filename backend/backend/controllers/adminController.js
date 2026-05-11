@@ -68,6 +68,22 @@ exports.createSubject = async (req, res) => {
   }
 };
 
+exports.updateSubject = async (req, res) => {
+  const { id } = req.params;
+  const { subject_code, subject_name } = req.body;
+  if (!subject_code || !subject_name) {
+    return res.status(400).json({ message: "Missing required fields" });
+  }
+  try {
+    const success = await adminModel.updateSubject(id, subject_code, subject_name);
+    if (!success) return res.status(404).json({ message: "Subject not found" });
+    res.json({ message: "Subject updated successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 exports.deleteSubject = async (req, res) => {
   try {
     const success = await adminModel.deleteSubject(req.params.id);

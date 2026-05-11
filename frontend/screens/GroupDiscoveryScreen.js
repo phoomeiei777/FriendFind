@@ -10,7 +10,10 @@ import {
   ScrollView,
   Image,
   Platform,
+  Alert,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
+import { apiFetch } from '../services/api';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,7 +22,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 
 export default function GroupDiscoveryScreen() {
-  const { activeSubject, fetchMyGroups, fetchMatches } = useApp();
+  const { activeSubject, fetchMyGroups, fetchMatches, token, authHeaders } = useApp();
   const { theme, isDark } = useTheme();
   const navigation = useNavigation();
 
@@ -76,6 +79,86 @@ export default function GroupDiscoveryScreen() {
       members: group.members || [],
       room_id: `group:${group.id}`,
     });
+  };
+
+  const handleUnmatch = (user) => {
+    Alert.alert(
+      "ยกเลิกการ Match",
+      `คุณต้องการยกเลิกการ Match กับ ${user.username || user.name} ใช่หรือไม่?`,
+      [
+        { text: "ยกเลิก", style: "cancel" },
+        { 
+          text: "ยืนยัน", 
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await apiFetch(`/api/matches/unmatch/${user.id}`, { 
+                method: 'POST',
+                headers: authHeaders(token)
+              });
+              load();
+            } catch (e) {
+              Alert.alert("Error", "ไม่สามารถยกเลิกการ Match ได้");
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const submitReport = async (userId, reason) => {
+    try {
+      await apiFetch('/api/reports', {
+        method: 'POST',
+        headers: authHeaders(token),
+        body: JSON.stringify({ reported_id: userId, reason: reason || 'No reason provided' })
+      });
+      Alert.alert("สำเร็จ", "ส่งรายงานเรียบร้อยแล้ว");
+    } catch (e) {
+      Alert.alert("Error", "ไม่สามารถส่งรายงานได้");
+    }
+  };
+
+  const handleReport = (user) => {
+    if (Platform.OS === 'ios') {
+      Alert.prompt(
+        "รายงานผู้ใช้",
+        "ระบุเหตุผลที่คุณต้องการรายงานผู้ใช้นี้:",
+        [
+          { text: "ยกเลิก", style: "cancel" },
+          { text: "ส่งรายงาน", onPress: (reason) => submitReport(user.id, reason) }
+        ],
+        "plain-text"
+      );
+    } else if (Platform.OS === 'web') {
+      const reason = window.prompt("ระบุเหตุผลที่คุณต้องการรายงานผู้ใช้นี้:");
+      if (reason !== null) submitReport(user.id, reason);
+    } else {
+      Alert.alert(
+        "รายงานผู้ใช้",
+        "คุณยืนยันที่จะรายงานผู้ใช้นี้ใช่หรือไม่?",
+        [
+          { text: "ยกเลิก", style: "cancel" },
+          { text: "ยืนยัน", onPress: () => submitReport(user.id, "Reported from Android app") }
+        ]
+      );
+    }
+  };
+
+  const renderRightActions = (item) => {
+    if (selectedTab !== 'friends') return null;
+    return (
+      <View style={s.swipeActions}>
+        <TouchableOpacity style={[s.swipeActionBtn, { backgroundColor: '#E11D48' }]} onPress={() => handleReport(item)}>
+          <Ionicons name="flag" size={24} color="#FFF" />
+          <Text style={s.swipeActionText}>รายงาน</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[s.swipeActionBtn, { backgroundColor: '#F3F4F6' }]} onPress={() => handleUnmatch(item)}>
+          <Ionicons name="close" size={28} color="#1F2937" />
+          <Text style={[s.swipeActionText, { color: '#1F2937' }]}>ยกเลิกการ{"\n"}Match</Text>
+        </TouchableOpacity>
+      </View>
+    );
   };
 
   const activeData = selectedTab === 'friends' ? users : groups;
@@ -145,63 +228,77 @@ export default function GroupDiscoveryScreen() {
             keyExtractor={(item, index) => String(item.id ?? item.title ?? index)}
             contentContainerStyle={s.list}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.button} />}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={s.chatCard}
-                onPress={() => selectedTab === 'friends' ? handleOpenPrivateChat(item) : handleOpenGroupChat(item)}
-              >
-                {/* Avatar */}
-                <View style={s.avatarWrap}>
-                  {item?.profile_image_url ? (
-                    <Image source={{ uri: item.profile_image_url }} style={s.avatarImg} />
-                  ) : (
-                    <View style={s.avatar}>
-                      <Text style={s.avatarInitial}>
-                        {selectedTab === 'friends'
-                          ? (item.username || item.name || '?').charAt(0).toUpperCase()
-                          : (item.title || item.subject_name || '?').charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
-                  )}
+            renderItem={({ item }) => {
+              const cardContent = (
+                <TouchableOpacity
+                  style={selectedTab === 'friends' ? s.chatCardSwipeable : s.chatCard}
+                  onPress={() => selectedTab === 'friends' ? handleOpenPrivateChat(item) : handleOpenGroupChat(item)}
+                >
+                  {/* Avatar */}
+                  <View style={s.avatarWrap}>
+                    {item?.profile_image_url ? (
+                      <Image source={{ uri: item.profile_image_url }} style={s.avatarImg} />
+                    ) : (
+                      <View style={s.avatar}>
+                        <Text style={s.avatarInitial}>
+                          {selectedTab === 'friends'
+                            ? (item.username || item.name || '?').charAt(0).toUpperCase()
+                            : (item.title || item.subject_name || '?').charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
 
-                  {/* Group member badge */}
-                  {selectedTab === 'groups' && item.member_count > 0 && (
-                    <View style={s.memberBadge}>
-                      <Text style={s.memberBadgeText}>{item.member_count}</Text>
-                    </View>
-                  )}
+                    {/* Group member badge */}
+                    {selectedTab === 'groups' && item.member_count > 0 && (
+                      <View style={s.memberBadge}>
+                        <Text style={s.memberBadgeText}>{item.member_count}</Text>
+                      </View>
+                    )}
 
-                  {/* Unread badge (placeholder) */}
-                  {selectedTab === 'friends' && (
-                    <View style={[s.memberBadge, { backgroundColor: '#FF4D4D', right: -2, top: -2, width: 18, height: 18 }]}>
-                      <Text style={[s.memberBadgeText, { fontSize: 9 }]}>1</Text>
-                    </View>
-                  )}
-                </View>
+                    {/* Unread badge (placeholder) */}
+                    {selectedTab === 'friends' && (
+                      <View style={[s.memberBadge, { backgroundColor: '#FF4D4D', right: -2, top: -2, width: 18, height: 18 }]}>
+                        <Text style={[s.memberBadgeText, { fontSize: 9 }]}>1</Text>
+                      </View>
+                    )}
+                  </View>
 
-                {/* Chat info */}
-                <View style={s.chatContent}>
-                  <Text style={s.chatName}>
-                    {selectedTab === 'friends'
-                      ? item.username || item.name || 'Friend'
-                      : item.title || item.subject_name || 'Group Chat'}
-                  </Text>
-                  <Text style={s.chatLast}>
-                    {selectedTab === 'friends'
-                      ? (() => {
-                          if (item.matched_at) {
-                            const d = new Date(item.matched_at);
-                            return `❤️ Matched · ${d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' })}`;
-                          }
-                          return item.email || 'Study Buddy';
-                        })()
-                      : item.subject_name
-                        ? `${item.subject_name} · ${item.member_count || 0} members`
-                        : 'Group conversation'}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
+                  {/* Chat info */}
+                  <View style={s.chatContent}>
+                    <Text style={s.chatName}>
+                      {selectedTab === 'friends'
+                        ? item.username || item.name || 'Friend'
+                        : item.title || item.subject_name || 'Group Chat'}
+                    </Text>
+                    <Text style={s.chatLast}>
+                      {selectedTab === 'friends'
+                        ? (() => {
+                            if (item.matched_at) {
+                              const d = new Date(item.matched_at);
+                              return `❤️ Matched · ${d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' })}`;
+                            }
+                            return item.email || 'Study Buddy';
+                          })()
+                        : item.subject_name
+                          ? `${item.subject_name} · ${item.member_count || 0} members`
+                          : 'Group conversation'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+
+              if (selectedTab === 'friends') {
+                return (
+                  <View style={s.swipeContainer}>
+                    <Swipeable renderRightActions={() => renderRightActions(item)}>
+                      {cardContent}
+                    </Swipeable>
+                  </View>
+                );
+              }
+
+              return cardContent;
+            }}
             ListEmptyComponent={<Text style={s.empty}>{emptyText}</Text>}
           />
         )}
@@ -305,6 +402,38 @@ const makeStyles = (theme, isDark) => StyleSheet.create({
       ios:     { shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: isDark ? 0.3 : 0.08, shadowRadius: 12 },
       android: { elevation: 2 },
     }),
+  },
+  swipeContainer: {
+    marginBottom: 12,
+    borderRadius: 18,
+    backgroundColor: theme.surface,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios:     { shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: isDark ? 0.3 : 0.08, shadowRadius: 12 },
+      android: { elevation: 2 },
+    }),
+  },
+  chatCardSwipeable: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.surface,
+    padding: 16,
+  },
+  swipeActions: {
+    flexDirection: 'row',
+  },
+  swipeActionBtn: {
+    width: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 8,
+  },
+  swipeActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFF',
+    marginTop: 4,
+    textAlign: 'center',
   },
   avatarWrap:    { position: 'relative', marginRight: 14 },
   avatar: {

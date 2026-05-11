@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -40,39 +41,39 @@ export default function LoginScreen({ navigation }) {
   };
 
   const handleContinue = async () => {
-  if (step === 1) {
-    if (!phoneNumber || phoneNumber.length < 9) {
-      alert("Please enter a valid phone number");
-      return;
-    }
-    const response = await sendOtp(`${countryCode}${phoneNumber}`);
-    if (response.success) {
-      setActualOtp(response.otp);
-      alert(`รหัส OTP ของคุณคือ: ${response.otp}`);
-      setStep(2);
-    }
-  } else {
-    const enteredOtp = otp.join('');
-    if (enteredOtp !== actualOtp) {
-      alert("Invalid OTP");
-      return;
-    }
-    try {
-      const identity = phoneNumber;
-      const userData = await login(identity, phoneNumber);
-
-      // ✅ เช็ค is_banned หลัง login สำเร็จ
-      if (userData?.is_banned === 1) {
-        alert("บัญชีของคุณถูกระงับการใช้งาน\nกรุณาติดต่อผู้ดูแลระบบ");
-        return; // หยุดไม่ให้เข้าแอป
+    if (step === 1) {
+      if (!phoneNumber || phoneNumber.length < 9) {
+        Alert.alert("ข้อผิดพลาด", "Please enter a valid phone number");
+        return;
       }
+      const response = await sendOtp(`${countryCode}${phoneNumber}`);
+      if (response.success) {
+        setActualOtp(response.otp);
+        Alert.alert("รหัส OTP จำลอง", `รหัส OTP ของคุณคือ: ${response.otp}`);
+        setStep(2);
+      }
+    } else {
+      const enteredOtp = otp.join('');
+      if (enteredOtp !== actualOtp) {
+        Alert.alert("ข้อผิดพลาด", "Invalid OTP");
+        return;
+      }
+      try {
+        const identity = phoneNumber;
+        const userData = await login(identity, phoneNumber);
 
-      navigation.replace('MainTabs');
-    } catch (error) {
-      alert("Login failed: " + (error.message || "Please check your information"));
+        // ✅ เช็ค is_banned หลัง login สำเร็จ
+        if (userData?.is_banned === 1) {
+          Alert.alert("ถูกระงับการใช้งาน", "บัญชีของคุณถูกระงับการใช้งาน\nกรุณาติดต่อผู้ดูแลระบบ");
+          return; // หยุดไม่ให้เข้าแอป
+        }
+
+        navigation.replace('MainTabs');
+      } catch (error) {
+        Alert.alert("Login failed", error.message || "Please check your information");
+      }
     }
-  }
-};
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['right', 'bottom', 'left']}>

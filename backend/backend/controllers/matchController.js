@@ -58,4 +58,28 @@ const swipedIds = async (req, res, next) => {
   }
 };
 
-module.exports = { swipe, listMatches, swipedIds };
+/**
+ * POST /api/matches/unmatch/:id
+ * Unmatch with a user
+ */
+const unmatch = async (req, res, next) => {
+  try {
+    const targetId = req.params.id;
+    const userId = req.user.id;
+
+    if (!targetId) {
+      return res.status(400).json({ message: "target_id is required." });
+    }
+
+    const success = await require("../models/matchModel").unmatchUser(userId, targetId);
+    if (!success) {
+      return res.status(404).json({ message: "Match not found or already unmatched." });
+    }
+
+    return res.json({ message: "Unmatched successfully." });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+module.exports = { swipe, listMatches, swipedIds, unmatch };
