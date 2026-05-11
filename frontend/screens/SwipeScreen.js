@@ -29,7 +29,7 @@ export default function SwipeScreen({ navigation }) {
     fetchUsersByActiveSubject,
     fetchUsersBySubject,
     fetchAllUsers,
-    fetchSubjects,
+    fetchMyApprovedSubjects,
     user: currentUser,
     recordSwipe,
     token,
@@ -63,12 +63,12 @@ export default function SwipeScreen({ navigation }) {
   useEffect(() => {
     const load = async () => {
       try {
-        const data = await fetchSubjects();
+        const data = await fetchMyApprovedSubjects();
         setSubjects(data.subjects || []);
       } catch {}
     };
     load();
-  }, [fetchSubjects]);
+  }, [fetchMyApprovedSubjects]);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);

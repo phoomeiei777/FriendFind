@@ -6,7 +6,8 @@ const getUsersByActiveSubject = async (req, res, next) => {
     if (!subjectCode) {
       return res.status(400).json({ message: "subjectCode is required." });
     }
-    const users = await fetchUsersByActiveSubject(subjectCode);
+    const excludeId = req.user?.id || null;
+    const users = await fetchUsersByActiveSubject(subjectCode, excludeId);
     return res.json({ count: users.length, users });
   } catch (error) {
     return next(error);

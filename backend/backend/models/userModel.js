@@ -29,20 +29,26 @@ const findUserByUsernameOrEmail = async (username, email) => {
   return rows[0] || null;
 };
 
-const fetchUsersByActiveSubject = async (subjectCode) => {
-  const [rows] = await db.execute(
-    `SELECT
+const fetchUsersByActiveSubject = async (subjectCode, excludeId) => {
+  let query = `SELECT
        u.id, u.username, u.email, u.faculty, u.\`year\`, u.interests, u.profile_image_url,
        u.pronouns, u.gender, u.study_goal, u.looking_for, u.study_style, u.study_time, u.study_location, u.study_vibe, u.strength, u.weakness,
        (SELECT GROUP_CONCAT(image_url ORDER BY display_order ASC SEPARATOR '|') FROM user_images WHERE user_id = u.id) as additional_images
-     FROM user_subjects us
-     JOIN users u ON u.id = us.user_id
-     JOIN subjects s ON s.id = us.subject_id
-     WHERE us.is_active = TRUE
-       AND s.subject_code = ?
-     ORDER BY u.username ASC`,
-    [subjectCode]
-  );
+     FROM enrollments e
+     JOIN users u ON u.id = e.user_id
+     JOIN subjects s ON s.id = e.subject_id
+     WHERE e.status = 'approved'
+       AND s.subject_code = ?`;
+  const params = [subjectCode];
+
+  if (excludeId) {
+    query += ` AND u.id != ?`;
+    params.push(excludeId);
+  }
+
+  query += ` ORDER BY u.username ASC`;
+
+  const [rows] = await db.execute(query, params);
   return rows.map(row => ({
     ...row,
     images: row.additional_images 

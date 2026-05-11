@@ -105,8 +105,24 @@ export function AppProvider({ children }) {
   }, []);
 
   const fetchUsersBySubject = useCallback(async (subjectCode) => {
-    return apiFetch(`/api/users/active-subject/${encodeURIComponent(subjectCode)}`);
-  }, []);
+    return apiFetch(`/api/users/active-subject/${encodeURIComponent(subjectCode)}`, { headers: authHeaders(token) });
+  }, [token]);
+
+  // ─── Enrollments ──────────────────────────────────────────────
+  const enrollSubject = useCallback(async (subjectId) => {
+    return apiFetch(`/api/enrollments/${subjectId}/enroll`, {
+      method: 'POST',
+      headers: authHeaders(token),
+    });
+  }, [token]);
+
+  const fetchMyEnrollments = useCallback(async () => {
+    return apiFetch('/api/enrollments/my', { headers: authHeaders(token) });
+  }, [token]);
+
+  const fetchMyApprovedSubjects = useCallback(async () => {
+    return apiFetch('/api/enrollments/my-approved', { headers: authHeaders(token) });
+  }, [token]);
 
   // ─── Groups ───────────────────────────────────────────────────
   const fetchGroups = useCallback(async (subjectId) => {
@@ -236,6 +252,9 @@ export function AppProvider({ children }) {
     sendMessage,
     fetchMessages,
     updateProfile,
+    enrollSubject,
+    fetchMyEnrollments,
+    fetchMyApprovedSubjects,
     apiBase: getApiBase(),
     apiFetch,
     authHeaders,
@@ -246,6 +265,7 @@ export function AppProvider({ children }) {
     fetchGroups, fetchMyGroups, createGroup, joinGroup,
     fetchGroupMembers, updateMemberStatus, deleteGroup, leaveGroup,
     recordSwipe, fetchMatches, sendMessage, fetchMessages, updateProfile,
+    enrollSubject, fetchMyEnrollments, fetchMyApprovedSubjects,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

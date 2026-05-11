@@ -36,6 +36,10 @@ export default function Sidebar({ onLogout }) {
           <UsersRound size={20} />
           Groups
         </NavLink>
+        <NavLink to="/enrollments" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <BookOpen size={20} />
+          Enrollments
+        </NavLink>
       </nav>
 
       <div className="nav-links sidebar-footer">

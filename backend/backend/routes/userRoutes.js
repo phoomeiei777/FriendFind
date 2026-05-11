@@ -15,7 +15,7 @@ const optionalAuth = (req, res, next) => {
   next();
 };
 
-router.get("/active-subject/:subjectCode", getUsersByActiveSubject);
+router.get("/active-subject/:subjectCode", optionalAuth, getUsersByActiveSubject);
 router.get("/", optionalAuth, getAllUsers);
 router.patch("/profile", requireAuth, updateProfile);
 

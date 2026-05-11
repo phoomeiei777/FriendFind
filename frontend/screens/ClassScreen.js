@@ -11,6 +11,7 @@ import {
   Image,
   Platform,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,7 +23,7 @@ import { useNavigation } from '@react-navigation/native';
 const { width } = Dimensions.get('window');
 
 export default function ClassScreen() {
-  const { setActiveSubject, fetchSubjects } = useApp();
+  const { setActiveSubject, fetchSubjects, fetchMyEnrollments, enrollSubject } = useApp();
   const { theme, isDark } = useTheme();
   const navigation = useNavigation();
 
@@ -33,8 +34,21 @@ export default function ClassScreen() {
 
   const load = useCallback(async () => {
     try {
-      const data = await fetchSubjects();
-      setSubjects(data.subjects || []);
+      const [subjectsData, enrollmentsData] = await Promise.all([
+        fetchSubjects(),
+        fetchMyEnrollments()
+      ]);
+      const allSubjects = subjectsData.subjects || [];
+      const myEnrollments = enrollmentsData.enrollments || [];
+      
+      const combined = allSubjects.map(sub => {
+        const enrollment = myEnrollments.find(e => e.subject_id === sub.id);
+        return {
+          ...sub,
+          enrollmentStatus: enrollment ? enrollment.status : null
+        };
+      });
+      setSubjects(combined);
     } catch (e) {
       console.warn(e);
       setSubjects([]);
@@ -42,15 +56,39 @@ export default function ClassScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [fetchSubjects]);
+  }, [fetchSubjects, fetchMyEnrollments]);
 
   useEffect(() => { load(); }, [load]);
 
   const onRefresh = () => { setRefreshing(true); load(); };
 
   const handleSelectSubject = (item) => {
-    setActiveSubject(item);
-    navigation.navigate('GroupClass');
+    if (item.enrollmentStatus === 'approved') {
+      setActiveSubject(item);
+      navigation.navigate('GroupClass');
+    } else if (item.enrollmentStatus === 'pending') {
+      alert("คำขอเข้าร่วมวิชานี้กำลังรอการอนุมัติจากแอดมิน");
+    } else {
+      // Not enrolled, prompt to enroll
+      Alert.alert(
+        "เข้าร่วมรายวิชา",
+        `คุณต้องการส่งคำขอเข้าร่วมวิชา ${item.subject_code} ใช่หรือไม่?`,
+        [
+          { text: "ยกเลิก", style: "cancel" },
+          {
+            text: "ยืนยัน",
+            onPress: async () => {
+              try {
+                await enrollSubject(item.id);
+                load(); // Reload data to update status
+              } catch (e) {
+                alert("ไม่สามารถส่งคำขอได้ อาจส่งไปแล้ว");
+              }
+            }
+          }
+        ]
+      );
+    }
   };
 
   const filteredSubjects = subjects.filter(sub =>
@@ -62,13 +100,25 @@ export default function ClassScreen() {
 
   const renderItem = ({ item, index }) => {
     const isHot = index < 2;
+    let badgeText = '';
+    let badgeColor = 'transparent';
+    
+    if (item.enrollmentStatus === 'approved') {
+      badgeText = '✅ เข้าร่วมแล้ว';
+      badgeColor = '#10B981';
+    } else if (item.enrollmentStatus === 'pending') {
+      badgeText = '⏳ รออนุมัติ';
+      badgeColor = '#F59E0B';
+    } else {
+      badgeText = '➕ ขอเข้าร่วม';
+      badgeColor = '#3B82F6';
+    }
+
     return (
       <TouchableOpacity style={s.card} onPress={() => handleSelectSubject(item)} activeOpacity={0.85}>
-        {isHot && (
-          <View style={s.hotBadge}>
-            <Text style={s.hotBadgeText}>HOT</Text>
-          </View>
-        )}
+        <View style={[s.statusBadge, { backgroundColor: badgeColor }]}>
+          <Text style={s.statusBadgeText}>{badgeText}</Text>
+        </View>
         <Text style={s.code}>{item.subject_code}</Text>
       </TouchableOpacity>
     );
@@ -180,8 +230,8 @@ const makeStyles = (theme, isDark) => StyleSheet.create({
     shadowRadius: 5,
     elevation: 8,
   },
-  hotBadge: { position: 'absolute', top: 10, right: 10, backgroundColor: '#FF0000', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  hotBadgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
+  statusBadge: { position: 'absolute', top: 10, right: 10, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  statusBadgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
   code:  { fontSize: 24, fontWeight: '800', color: '#FFF' },
   empty: { textAlign: 'center', color: theme.textMuted, padding: 24 },
 });

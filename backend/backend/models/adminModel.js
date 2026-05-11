@@ -13,8 +13,8 @@ const getDashboardStats = async () => {
   const [topSubjects] = await db.execute(`
     SELECT s.subject_name, COUNT(*) as count
     FROM matches m
-    JOIN user_subjects us ON m.swiper_id = us.user_id
-    JOIN subjects s ON us.subject_id = s.id
+    JOIN enrollments e ON m.swiper_id = e.user_id AND e.status = 'approved'
+    JOIN subjects s ON e.subject_id = s.id
     WHERE m.status = 'matched'
     GROUP BY s.id
     ORDER BY count DESC
@@ -47,9 +47,9 @@ const deleteUser = async (id) => {
 
 const getAllSubjects = async () => {
   const [rows] = await db.execute(`
-    SELECT s.id, s.subject_code, s.subject_name, COUNT(us.user_id) as enrolled_count
+    SELECT s.id, s.subject_code, s.subject_name, COUNT(e.user_id) as enrolled_count
     FROM subjects s
-    LEFT JOIN user_subjects us ON s.id = us.subject_id
+    LEFT JOIN enrollments e ON s.id = e.subject_id AND e.status = 'approved'
     GROUP BY s.id
     ORDER BY s.subject_code ASC
   `);
