@@ -43,19 +43,31 @@ export default function LoginScreen({ navigation }) {
   const handleContinue = async () => {
     if (step === 1) {
       if (!phoneNumber || phoneNumber.length < 9) {
-        Alert.alert("ข้อผิดพลาด", "Please enter a valid phone number");
+        if (Platform.OS === 'web') {
+          window.alert("ข้อผิดพลาด\nPlease enter a valid phone number");
+        } else {
+          Alert.alert("ข้อผิดพลาด", "Please enter a valid phone number");
+        }
         return;
       }
       const response = await sendOtp(`${countryCode}${phoneNumber}`);
       if (response.success) {
         setActualOtp(response.otp);
-        Alert.alert("รหัส OTP จำลอง", `รหัส OTP ของคุณคือ: ${response.otp}`);
+        if (Platform.OS === 'web') {
+          window.alert(`รหัส OTP จำลอง\nรหัส OTP ของคุณคือ: ${response.otp}`);
+        } else {
+          Alert.alert("รหัส OTP จำลอง", `รหัส OTP ของคุณคือ: ${response.otp}`);
+        }
         setStep(2);
       }
     } else {
       const enteredOtp = otp.join('');
       if (enteredOtp !== actualOtp) {
-        Alert.alert("ข้อผิดพลาด", "Invalid OTP");
+        if (Platform.OS === 'web') {
+          window.alert("ข้อผิดพลาด\nInvalid OTP");
+        } else {
+          Alert.alert("ข้อผิดพลาด", "Invalid OTP");
+        }
         return;
       }
       try {
@@ -64,13 +76,22 @@ export default function LoginScreen({ navigation }) {
 
         // ✅ เช็ค is_banned หลัง login สำเร็จ
         if (userData?.is_banned === 1) {
-          Alert.alert("ถูกระงับการใช้งาน", "บัญชีของคุณถูกระงับการใช้งาน\nกรุณาติดต่อผู้ดูแลระบบ");
+          if (Platform.OS === 'web') {
+            window.alert("ถูกระงับการใช้งาน\nบัญชีของคุณถูกระงับการใช้งาน\nกรุณาติดต่อผู้ดูแลระบบ");
+          } else {
+            Alert.alert("ถูกระงับการใช้งาน", "บัญชีของคุณถูกระงับการใช้งาน\nกรุณาติดต่อผู้ดูแลระบบ");
+          }
           return; // หยุดไม่ให้เข้าแอป
         }
 
         navigation.replace('MainTabs');
       } catch (error) {
-        Alert.alert("Login failed", error.message || "Please check your information");
+        const msg = error.message || "Please check your information";
+        if (Platform.OS === 'web') {
+          window.alert(`Login failed\n${msg}`);
+        } else {
+          Alert.alert("Login failed", msg);
+        }
       }
     }
   };
