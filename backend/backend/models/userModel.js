@@ -155,6 +155,14 @@ const updateUserImages = async (userId, images) => {
   }
 };
 
+const updatePasswordByIdentity = async (identity, passwordHash) => {
+  const [result] = await db.execute(
+    "UPDATE users SET password_hash = ? WHERE email = ? OR phone = ?",
+    [passwordHash, identity, identity]
+  );
+  return result.affectedRows > 0;
+};
+
 module.exports = {
   createUser,
   findUserByEmail,
@@ -163,4 +171,5 @@ module.exports = {
   fetchAllUsers,
   updateUser,
   updateUserImages,
+  updatePasswordByIdentity,
 };

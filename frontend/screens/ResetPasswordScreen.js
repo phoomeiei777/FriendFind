@@ -16,20 +16,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import Header from '../components/Header';
 import CustomButton from '../components/CustomButton';
-import SocialButton from '../components/SocialButton';
 import OtpInputRow from '../components/OtpInputRow';
 import { sendOtp } from '../utils/otpUtils';
 
-export default function LoginScreen({ navigation }) {
+export default function ResetPasswordScreen({ navigation }) {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [step, setStep] = useState(1);
   const [otp, setOtp] = useState(['', '', '', '']);
   const [actualOtp, setActualOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [countryCode, setCountryCode] = useState('+66');
   const [showCountryCodePicker, setShowCountryCodePicker] = useState(false);
   const COUNTRY_CODES = ['+66', '+1', '+81', '+44', '+91'];
   
-  const { login } = useApp();
+  const { resetPassword } = useApp();
 
   const handleContinue = async () => {
     if (step === 1) {
@@ -51,7 +51,7 @@ export default function LoginScreen({ navigation }) {
         }
         setStep(2);
       }
-    } else {
+    } else if (step === 2) {
       const enteredOtp = otp.join('');
       if (enteredOtp !== actualOtp) {
         if (Platform.OS === 'web') {
@@ -61,30 +61,47 @@ export default function LoginScreen({ navigation }) {
         }
         return;
       }
+      setStep(3);
+    } else if (step === 3) {
+      if (!newPassword || newPassword.length < 6) {
+        if (Platform.OS === 'web') {
+          window.alert("ข้อผิดพลาด\nPassword must be at least 6 characters.");
+        } else {
+          Alert.alert("ข้อผิดพลาด", "Password must be at least 6 characters.");
+        }
+        return;
+      }
       try {
         const identity = phoneNumber;
-        const userData = await login(identity, phoneNumber);
-
-        // ✅ เช็ค is_banned หลัง login สำเร็จ
-        if (userData?.is_banned === 1) {
-          if (Platform.OS === 'web') {
-            window.alert("ถูกระงับการใช้งาน\nบัญชีของคุณถูกระงับการใช้งาน\nกรุณาติดต่อผู้ดูแลระบบ");
-          } else {
-            Alert.alert("ถูกระงับการใช้งาน", "บัญชีของคุณถูกระงับการใช้งาน\nกรุณาติดต่อผู้ดูแลระบบ");
-          }
-          return; // หยุดไม่ให้เข้าแอป
-        }
-
-        navigation.replace('MainTabs');
-      } catch (error) {
-        const msg = error.message || "Please check your information";
+        await resetPassword(identity, newPassword);
+        
         if (Platform.OS === 'web') {
-          window.alert(`Login failed\n${msg}`);
+          window.alert("สำเร็จ\nรหัสผ่านของคุณถูกตั้งใหม่แล้ว!");
         } else {
-          Alert.alert("Login failed", msg);
+          Alert.alert("สำเร็จ", "รหัสผ่านของคุณถูกตั้งใหม่แล้ว!");
+        }
+        navigation.replace('Login');
+      } catch (error) {
+        const msg = error.message || "Failed to reset password. Please try again.";
+        if (Platform.OS === 'web') {
+          window.alert(`Error\n${msg}`);
+        } else {
+          Alert.alert("Error", msg);
         }
       }
     }
+  };
+
+  const getTitle = () => {
+    if (step === 1) return "Reset Your Password";
+    if (step === 2) return "ENTER YOUR CONFIRMATION CODE";
+    return "Create New Password";
+  };
+
+  const getSubtitle = () => {
+    if (step === 1) return "Enter your phone number to receive an OTP";
+    if (step === 2) return `Sent to: ${countryCode} ${phoneNumber}`;
+    return "Please enter a strong password";
   };
 
   return (
@@ -100,22 +117,22 @@ export default function LoginScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* 2. Logo */}
+          {/* Logo */}
           <Image 
             source={require('../assets/image.png')} 
             style={styles.logo} 
             resizeMode="contain" 
           />
 
-          {/* 3. Text Section */}
+          {/* Text Section */}
           <View style={styles.textContainer}>
-            <Text style={styles.title}>{step === 1 ? "You don't have to study alone anymore" : "ENTER YOUR CONFIRMATION CODE"}</Text>
-            <Text style={styles.subtitle}>{step === 1 ? "Find your people and grow together" : `Sent to: ${countryCode} ${phoneNumber}`}</Text>
+            <Text style={styles.title}>{getTitle()}</Text>
+            <Text style={styles.subtitle}>{getSubtitle()}</Text>
           </View>
 
-          {/* 4. Input Section & Dropdown Wrapper */}
+          {/* Input Section */}
           <View style={styles.inputAreaWrapper}>
-            {step === 1 ? (
+            {step === 1 && (
               <View style={styles.inputContainer}>
                 <TouchableOpacity 
                   style={styles.countryCodeButton} 
@@ -141,10 +158,12 @@ export default function LoginScreen({ navigation }) {
                   value={phoneNumber}
                   onChangeText={setPhoneNumber}
                   autoFocus={true}
-                  maxLength={10} // ✅ จำกัดแค่ 10 หลัก
+                  maxLength={10}
                 />
               </View>
-            ) : (
+            )}
+
+            {step === 2 && (
               <OtpInputRow 
                 otp={otp} 
                 onChangeText={(text, index) => {
@@ -153,6 +172,20 @@ export default function LoginScreen({ navigation }) {
                   setOtp(newOtp);
                 }} 
               />
+            )}
+
+            {step === 3 && (
+              <View style={styles.inputContainer}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="New Password"
+                  placeholderTextColor="#9CA3AF"
+                  secureTextEntry={true}
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  autoFocus={true}
+                />
+              </View>
             )}
 
             {/* Inline Relative Dropdown */}
@@ -188,50 +221,18 @@ export default function LoginScreen({ navigation }) {
             )}
           </View>
 
-          {/* 5. Action Buttons */}
+          {/* Action Buttons */}
           <CustomButton 
-            title={step === 1 ? 'Continue' : 'Verify & Login'} 
+            title={step === 1 ? 'Send OTP' : (step === 2 ? 'Verify OTP' : 'Update Password')} 
             onPress={handleContinue} 
           />
 
-          {step === 1 && (
-            <TouchableOpacity 
-              style={{ alignItems: 'center', marginBottom: 20, marginTop: -10 }} 
-              onPress={() => navigation.navigate('ResetPassword')}
-            >
-              <Text style={{ color: '#4B5563', fontSize: 14, fontWeight: '600' }}>
-                Forgot Password? <Text style={{ color: '#F58882' }}>Reset here</Text>
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          <View style={styles.dividerContainer}>
-            <View style={styles.dividerHorizontal} />
-            <Text style={styles.orText}>or</Text>
-            <View style={styles.dividerHorizontal} />
-          </View>
-
-          <SocialButton 
-            iconName="logo-google" 
-            iconColor="#DB4437" 
-            title="Continue with Google" 
-            onPress={() => {}} 
-          />
-
-          <SocialButton 
-            iconName="logo-apple" 
-            iconColor="#000" 
-            title="Continue with Apple" 
-            onPress={() => {}} 
-          />
-
-          {/* 6. Footer Terms */}
+          {/* Footer Terms */}
           <View style={{ flex: 1, minHeight: 40 }} />
           <View style={styles.footerContainer}>
              <Text style={styles.footerText}>
-                By clicking continue, you agree to our{" "}
-                <Text style={styles.linkText}>Terms of Service</Text>{"\n"}
-                and <Text style={styles.linkText}>Privacy Policy</Text>
+                Remember your password?{" "}
+                <Text style={styles.linkText} onPress={() => navigation.navigate('Login')}>Login here</Text>
              </Text>
           </View>
         </ScrollView>
@@ -250,15 +251,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24, 
     paddingTop: 10, 
     paddingBottom: 20 
-  },
-  header: { 
-    width: '100%', 
-    alignItems: 'flex-start', 
-    marginBottom: 10 
-  },
-  backButton: { 
-    padding: 8, 
-    marginLeft: -8 
   },
   logo: { 
     width: 140, 
@@ -297,28 +289,6 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     height: 56,
     paddingHorizontal: 16,
-  },
-  otpWrapper: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    paddingHorizontal: 0,
-  },
-  otpInput: {
-    width: 75,
-    height: 75,
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    fontSize: 28,
-    fontWeight: '800',
-    textAlign: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
   countryCodeButton: { 
     flexDirection: 'row', 
@@ -376,53 +346,6 @@ const styles = StyleSheet.create({
     color: '#F58882', 
     fontWeight: '700' 
   },
-  continueButton: { 
-    backgroundColor: '#000', 
-    height: 56, 
-    borderRadius: 12, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    marginBottom: 24 
-  },
-  continueText: { 
-    color: '#FFF', 
-    fontSize: 16, 
-    fontWeight: '600' 
-  },
-  dividerContainer: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    marginBottom: 24 
-  },
-  dividerHorizontal: { 
-    flex: 1, 
-    height: 1, 
-    backgroundColor: '#D1D5DB' 
-  },
-  orText: { 
-    marginHorizontal: 12, 
-    color: '#6B7280', 
-    fontSize: 14 
-  },
-  socialButton: {
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF', 
-    borderWidth: 1, 
-    borderColor: '#E5E7EB',
-    height: 56, 
-    borderRadius: 12, 
-    marginBottom: 12,
-  },
-  socialIcon: { 
-    marginRight: 10 
-  },
-  socialText: { 
-    color: '#111827', 
-    fontSize: 15, 
-    fontWeight: '600' 
-  },
   footerContainer: { 
     marginTop: 'auto', 
     paddingBottom: 10 
@@ -430,11 +353,11 @@ const styles = StyleSheet.create({
   footerText: { 
     textAlign: 'center', 
     color: '#9CA3AF', 
-    fontSize: 12, 
+    fontSize: 14, 
     lineHeight: 18 
   },
   linkText: { 
     color: '#111827', 
-    fontWeight: '500' 
+    fontWeight: '600' 
   },
 });

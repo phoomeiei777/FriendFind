@@ -14,6 +14,7 @@ const FakeDynamicIsland = () => (
 
 function AppWrapper() {
   const { isDark } = useTheme();
+
   return (
     <>
       <AppNavigator />

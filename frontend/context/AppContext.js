@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { apiFetch, authHeaders, getApiBase } from '../services/api';
+import { apiFetch, authHeaders, getApiBase, uploadImage } from '../services/api';
 
 const STORAGE_SUBJECT = '@friendfind_active_subject';
 const STORAGE_TOKEN   = '@friendfind_token';
@@ -66,9 +66,20 @@ export function AppProvider({ children }) {
   }, []);
 
   const register = useCallback(async ({ username, email, password, phone, faculty, year, interests, profile_image_url }) => {
+    let finalProfileImage = profile_image_url;
+    if (profile_image_url && profile_image_url.startsWith('file://')) {
+      finalProfileImage = await uploadImage(profile_image_url, null);
+    }
     return apiFetch('/api/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ username, email, password, phone, faculty, year, interests, profile_image_url }),
+      body: JSON.stringify({ username, email, password, phone, faculty, year, interests, profile_image_url: finalProfileImage }),
+    });
+  }, []);
+
+  const resetPassword = useCallback(async (identity, newPassword) => {
+    return apiFetch('/api/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ identity, newPassword }),
     });
   }, []);
 
@@ -136,10 +147,17 @@ export function AppProvider({ children }) {
   }, [token]);
 
   const createGroup = useCallback(async (body) => {
+    const updatedBody = { ...body };
+    if (updatedBody.image_url && updatedBody.image_url.startsWith('file://')) {
+      updatedBody.image_url = await uploadImage(updatedBody.image_url, token);
+    }
+    if (updatedBody.group_image_url && updatedBody.group_image_url.startsWith('file://')) {
+      updatedBody.group_image_url = await uploadImage(updatedBody.group_image_url, token);
+    }
     return apiFetch('/api/groups', {
       method: 'POST',
       headers: authHeaders(token),
-      body: JSON.stringify(body),
+      body: JSON.stringify(updatedBody),
     });
   }, [token]);
 
@@ -192,10 +210,14 @@ export function AppProvider({ children }) {
 
   // ─── Messages ─────────────────────────────────────────────────
   const sendMessage = useCallback(async ({ room_id, target_user_id, content, image_url }) => {
+    let finalImageUrl = image_url;
+    if (image_url && image_url.startsWith('file://')) {
+      finalImageUrl = await uploadImage(image_url, token);
+    }
     return apiFetch('/api/messages', {
       method: 'POST',
       headers: authHeaders(token),
-      body: JSON.stringify({ room_id, target_user_id, content, image_url }),
+      body: JSON.stringify({ room_id, target_user_id, content, image_url: finalImageUrl }),
     });
   }, [token]);
 
@@ -208,10 +230,14 @@ export function AppProvider({ children }) {
 
   // ─── Profile ──────────────────────────────────────────────────
   const updateProfile = useCallback(async (fields) => {
+    const updatedFields = { ...fields };
+    if (updatedFields.profile_image_url && updatedFields.profile_image_url.startsWith('file://')) {
+      updatedFields.profile_image_url = await uploadImage(updatedFields.profile_image_url, token);
+    }
     const data = await apiFetch('/api/users/profile', {
       method: 'PATCH',
       headers: authHeaders(token),
-      body: JSON.stringify(fields),
+      body: JSON.stringify(updatedFields),
     });
     if (data.user) {
       setUser(data.user);
@@ -233,6 +259,7 @@ export function AppProvider({ children }) {
     user,
     login,
     register,
+    resetPassword,
     mockSetUser,
     logout,
     fetchSubjects,
@@ -260,7 +287,7 @@ export function AppProvider({ children }) {
     authHeaders,
   }), [
     loading, activeSubject, setActiveSubject, token, user,
-    login, register, mockSetUser, logout,
+    login, register, resetPassword, mockSetUser, logout,
     fetchSubjects, fetchAllUsers, fetchUsersByActiveSubject, fetchUsersBySubject,
     fetchGroups, fetchMyGroups, createGroup, joinGroup,
     fetchGroupMembers, updateMemberStatus, deleteGroup, leaveGroup,

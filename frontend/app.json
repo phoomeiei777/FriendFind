@@ -28,7 +28,8 @@
       "apiBaseWeb": "http://127.0.0.1:5001"
     },
     "plugins": [
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-font"
     ]
   }
 }

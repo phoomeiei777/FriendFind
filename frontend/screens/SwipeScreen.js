@@ -12,6 +12,8 @@ import {
   TouchableOpacity,
   View,
   Image,
+  Alert,
+  ToastAndroid
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -19,6 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import MatchOverlay from '../components/MatchOverlay';
+import { Accelerometer } from 'expo-sensors';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const SWIPE_OUT = SCREEN_W * 0.25;
@@ -136,6 +139,47 @@ export default function SwipeScreen({ navigation }) {
       useNativeDriver: false,
     }).start();
   }, [position]);
+
+  const undoSwipe = useCallback(() => {
+    if (indexRef.current > 0) {
+      setIndex(prev => prev - 1);
+      position.setValue({ x: 0, y: 0 });
+      if (Platform.OS === 'android') {
+        ToastAndroid.show("ดึงโปรไฟล์ล่าสุดกลับมาแล้ว", ToastAndroid.SHORT);
+      } else {
+        Alert.alert("สำเร็จ", "ดึงโปรไฟล์ล่าสุดกลับมาแล้ว");
+      }
+    } else {
+      if (Platform.OS === 'android') {
+        ToastAndroid.show("ไม่มีโปรไฟล์ก่อนหน้า", ToastAndroid.SHORT);
+      }
+    }
+  }, [position]);
+
+  useEffect(() => {
+    Accelerometer.setUpdateInterval(100);
+    let isAlertShowing = false;
+
+    const subscription = Accelerometer.addListener(({ x }) => {
+      const isTiltingLeft = x > 0.6;
+      // เช็คว่าเอียงซ้าย และไม่ได้แสดง Alert อยู่ และมีโปรไฟล์ก่อนหน้าให้กู้คืน
+      if (isTiltingLeft && !isAlertShowing && indexRef.current > 0) {
+        console.log(`[Sensor] 🔄 เอียงซ้ายสำเร็จ! กำลังเรียกคืนโปรไฟล์... (ค่า X: ${x.toFixed(2)})`);
+        isAlertShowing = true;
+        Alert.alert(
+          "เลิกทำ (Undo)",
+          "ต้องการเรียกคืนโปรไฟล์ล่าสุดหรือไม่?",
+          [
+            { text: "ยกเลิก", style: "cancel", onPress: () => { isAlertShowing = false; } },
+            { text: "ตกลง", onPress: () => { undoSwipe(); isAlertShowing = false; } }
+          ],
+          { cancelable: false }
+        );
+      }
+    });
+
+    return () => subscription.remove();
+  }, [undoSwipe]);
 
   const panResponder = useRef(
     PanResponder.create({

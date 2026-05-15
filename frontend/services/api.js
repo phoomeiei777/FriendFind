@@ -64,3 +64,43 @@ export function authHeaders(token) {
   if (!token) return {};
   return { Authorization: `Bearer ${token}` };
 }
+
+export async function uploadImage(uri, token) {
+  if (!uri) return null;
+  // If it's already a remote URL, just return it
+  if (uri.startsWith('http://') || uri.startsWith('https://')) return uri;
+
+  const base = getApiBase();
+  const url = `${base}/api/upload`;
+  
+  const filename = uri.split('/').pop() || 'image.jpg';
+  const match = /\.(\w+)$/.exec(filename);
+  const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+  const formData = new FormData();
+  formData.append('image', {
+    uri,
+    name: filename,
+    type
+  });
+
+  const headers = authHeaders(token);
+  // Do not set Content-Type to application/json, fetch will automatically set multipart/form-data with boundary
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    
+    const data = await parseJson(res);
+    if (!res.ok) throw new Error(data.message || 'Upload failed');
+    
+    // Convert relative path /uploads/filename.jpg to absolute URL http://192.168.1.100:5001/uploads/filename.jpg
+    return `${base}${data.url}`;
+  } catch (err) {
+    console.error('Image upload error:', err);
+    throw err;
+  }
+}

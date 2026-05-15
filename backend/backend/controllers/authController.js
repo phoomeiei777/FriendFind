@@ -4,6 +4,7 @@ const {
   createUser,
   findUserByEmail,
   findUserByUsernameOrEmail,
+  updatePasswordByIdentity,
 } = require("../models/userModel");
 const db = require("../config/db");
 
@@ -94,4 +95,25 @@ const login = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login };
+const resetPassword = async (req, res, next) => {
+  try {
+    const { identity, newPassword } = req.body;
+
+    if (!identity || !newPassword) {
+      return res.status(400).json({ message: "identity (email/phone) and newPassword are required." });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const success = await updatePasswordByIdentity(identity, passwordHash);
+
+    if (!success) {
+      return res.status(404).json({ message: "User not found with the provided identity." });
+    }
+
+    return res.json({ message: "Password reset successfully." });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+module.exports = { register, login, resetPassword };
