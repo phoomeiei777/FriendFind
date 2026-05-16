@@ -20,34 +20,31 @@ import OtpInputRow from '../components/OtpInputRow';
 import { sendOtp } from '../utils/otpUtils';
 
 export default function ResetPasswordScreen({ navigation }) {
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [email, setEmail] = useState('');
   const [step, setStep] = useState(1);
   const [otp, setOtp] = useState(['', '', '', '']);
   const [actualOtp, setActualOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [countryCode, setCountryCode] = useState('+66');
-  const [showCountryCodePicker, setShowCountryCodePicker] = useState(false);
-  const COUNTRY_CODES = ['+66', '+1', '+81', '+44', '+91'];
   
   const { resetPassword } = useApp();
 
   const handleContinue = async () => {
     if (step === 1) {
-      if (!phoneNumber || phoneNumber.length < 9) {
+      if (!email || !email.includes('@')) {
         if (Platform.OS === 'web') {
-          window.alert("ข้อผิดพลาด\nPlease enter a valid phone number");
+          window.alert("ข้อผิดพลาด\nPlease enter a valid email address");
         } else {
-          Alert.alert("ข้อผิดพลาด", "Please enter a valid phone number");
+          Alert.alert("ข้อผิดพลาด", "Please enter a valid email address");
         }
         return;
       }
-      const response = await sendOtp(`${countryCode}${phoneNumber}`);
+      const response = await sendOtp(email);
       if (response.success) {
         setActualOtp(response.otp);
         if (Platform.OS === 'web') {
-          window.alert(`รหัส OTP จำลอง\nรหัส OTP ของคุณคือ: ${response.otp}`);
+          window.alert(`รหัส OTP จำลอง\nOTP for ${email} is: ${response.otp}`);
         } else {
-          Alert.alert("รหัส OTP จำลอง", `รหัส OTP ของคุณคือ: ${response.otp}`);
+          Alert.alert("รหัส OTP จำลอง", `OTP for ${email} is: ${response.otp}`);
         }
         setStep(2);
       }
@@ -72,7 +69,7 @@ export default function ResetPasswordScreen({ navigation }) {
         return;
       }
       try {
-        const identity = phoneNumber;
+        const identity = email;
         await resetPassword(identity, newPassword);
         
         if (Platform.OS === 'web') {
@@ -99,8 +96,8 @@ export default function ResetPasswordScreen({ navigation }) {
   };
 
   const getSubtitle = () => {
-    if (step === 1) return "Enter your phone number to receive an OTP";
-    if (step === 2) return `Sent to: ${countryCode} ${phoneNumber}`;
+    if (step === 1) return "Enter your email to receive an OTP";
+    if (step === 2) return `Sent to: ${email}`;
     return "Please enter a strong password";
   };
 
@@ -134,31 +131,16 @@ export default function ResetPasswordScreen({ navigation }) {
           <View style={styles.inputAreaWrapper}>
             {step === 1 && (
               <View style={styles.inputContainer}>
-                <TouchableOpacity 
-                  style={styles.countryCodeButton} 
-                  onPress={() => setShowCountryCodePicker(!showCountryCodePicker)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.countryCodeText}>{String(countryCode)}</Text>
-                  <Ionicons 
-                    name={showCountryCodePicker ? "chevron-up" : "chevron-down"} 
-                    size={14} 
-                    color="#6B7280" 
-                    style={{ marginLeft: 4 }} 
-                  />
-                </TouchableOpacity>
-                
-                <View style={styles.dividerVertical} />
-                
+                <Ionicons name="mail-outline" size={20} color="#6B7280" style={{ marginRight: 10 }} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Phone number"
+                  placeholder="Email address"
                   placeholderTextColor="#9CA3AF"
-                  keyboardType="phone-pad"
-                  value={phoneNumber}
-                  onChangeText={setPhoneNumber}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  value={email}
+                  onChangeText={setEmail}
                   autoFocus={true}
-                  maxLength={10}
                 />
               </View>
             )}
@@ -188,37 +170,7 @@ export default function ResetPasswordScreen({ navigation }) {
               </View>
             )}
 
-            {/* Inline Relative Dropdown */}
-            {step === 1 && showCountryCodePicker && (
-              <View style={styles.inlineCountryDropdown}>
-                {COUNTRY_CODES.map((code, index) => {
-                  const isSelected = countryCode === code;
-                  return (
-                    <TouchableOpacity
-                      key={index}
-                      style={[
-                        styles.inlineDropdownItem, 
-                        isSelected && styles.inlineDropdownItemSelected
-                      ]}
-                      onPress={() => {
-                        setCountryCode(code);
-                        setShowCountryCodePicker(false);
-                      }}
-                    >
-                      <Text style={[
-                        styles.inlineDropdownText, 
-                        isSelected && styles.inlineDropdownTextSelected
-                      ]}>
-                        {String(code)}
-                      </Text>
-                      {isSelected ? (
-                        <Ionicons name="checkmark-circle" size={16} color="#F58882" />
-                      ) : null}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
+
           </View>
 
           {/* Action Buttons */}
@@ -290,62 +242,7 @@ const styles = StyleSheet.create({
     height: 56,
     paddingHorizontal: 16,
   },
-  countryCodeButton: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    height: '100%' 
-  },
-  countryCodeText: { 
-    fontSize: 16, 
-    color: '#111827', 
-    fontWeight: '600' 
-  },
-  dividerVertical: { 
-    width: 1, 
-    height: 24, 
-    backgroundColor: '#D1D5DB', 
-    marginHorizontal: 12 
-  },
-  input: { 
-    flex: 1, 
-    fontSize: 16, 
-    color: '#111827', 
-    height: '100%' 
-  },
-  inlineCountryDropdown: {
-    position: 'absolute',
-    top: 60, 
-    left: 0,
-    width: 140, 
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 8,
-    zIndex: 10000, 
-  },
-  inlineDropdownItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-  },
-  inlineDropdownItemSelected: { 
-    backgroundColor: '#FFF5F7' 
-  },
-  inlineDropdownText: { 
-    fontSize: 16, 
-    color: '#4B5563' 
-  },
-  inlineDropdownTextSelected: { 
-    color: '#F58882', 
-    fontWeight: '700' 
-  },
+
   footerContainer: { 
     marginTop: 'auto', 
     paddingBottom: 10 

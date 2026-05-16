@@ -16,73 +16,33 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import Header from '../components/Header';
 import CustomButton from '../components/CustomButton';
-import SocialButton from '../components/SocialButton';
 import OtpInputRow from '../components/OtpInputRow';
 import { sendOtp } from '../utils/otpUtils';
 
 export default function LoginScreen({ navigation }) {
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [step, setStep] = useState(1);
-  const [otp, setOtp] = useState(['', '', '', '']);
-  const [actualOtp, setActualOtp] = useState('');
-  const [countryCode, setCountryCode] = useState('+66');
-  const [showCountryCodePicker, setShowCountryCodePicker] = useState(false);
-  const COUNTRY_CODES = ['+66', '+1', '+81', '+44', '+91'];
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   
   const { login } = useApp();
 
-  const handleContinue = async () => {
-    if (step === 1) {
-      if (!phoneNumber || phoneNumber.length < 9) {
-        if (Platform.OS === 'web') {
-          window.alert("ข้อผิดพลาด\nPlease enter a valid phone number");
-        } else {
-          Alert.alert("ข้อผิดพลาด", "Please enter a valid phone number");
-        }
-        return;
+  const handleLogin = async () => {
+    if (!email || !password) {
+      if (Platform.OS === 'web') {
+        window.alert("ข้อผิดพลาด\nPlease enter email and password");
+      } else {
+        Alert.alert("ข้อผิดพลาด", "Please enter email and password");
       }
-      const response = await sendOtp(`${countryCode}${phoneNumber}`);
-      if (response.success) {
-        setActualOtp(response.otp);
-        if (Platform.OS === 'web') {
-          window.alert(`รหัส OTP จำลอง\nรหัส OTP ของคุณคือ: ${response.otp}`);
-        } else {
-          Alert.alert("รหัส OTP จำลอง", `รหัส OTP ของคุณคือ: ${response.otp}`);
-        }
-        setStep(2);
-      }
-    } else {
-      const enteredOtp = otp.join('');
-      if (enteredOtp !== actualOtp) {
-        if (Platform.OS === 'web') {
-          window.alert("ข้อผิดพลาด\nInvalid OTP");
-        } else {
-          Alert.alert("ข้อผิดพลาด", "Invalid OTP");
-        }
-        return;
-      }
-      try {
-        const identity = phoneNumber;
-        const userData = await login(identity, phoneNumber);
-
-        // ✅ เช็ค is_banned หลัง login สำเร็จ
-        if (userData?.is_banned === 1) {
-          if (Platform.OS === 'web') {
-            window.alert("ถูกระงับการใช้งาน\nบัญชีของคุณถูกระงับการใช้งาน\nกรุณาติดต่อผู้ดูแลระบบ");
-          } else {
-            Alert.alert("ถูกระงับการใช้งาน", "บัญชีของคุณถูกระงับการใช้งาน\nกรุณาติดต่อผู้ดูแลระบบ");
-          }
-          return; // หยุดไม่ให้เข้าแอป
-        }
-
-        navigation.replace('MainTabs');
-      } catch (error) {
-        const msg = error.message || "Please check your information";
-        if (Platform.OS === 'web') {
-          window.alert(`Login failed\n${msg}`);
-        } else {
-          Alert.alert("Login failed", msg);
-        }
+      return;
+    }
+    
+    try {
+      await login(email, password);
+      navigation.replace('MainTabs');
+    } catch (error) {
+      if (Platform.OS === 'web') {
+        window.alert(`Login failed\n${error.message}`);
+      } else {
+        Alert.alert("Login failed", error.message);
       }
     }
   };
@@ -109,121 +69,53 @@ export default function LoginScreen({ navigation }) {
 
           {/* 3. Text Section */}
           <View style={styles.textContainer}>
-            <Text style={styles.title}>{step === 1 ? "You don't have to study alone anymore" : "ENTER YOUR CONFIRMATION CODE"}</Text>
-            <Text style={styles.subtitle}>{step === 1 ? "Find your people and grow together" : `Sent to: ${countryCode} ${phoneNumber}`}</Text>
+            <Text style={styles.title}>Login to your account</Text>
+            <Text style={styles.subtitle}>Enter your email and password to continue</Text>
           </View>
 
           {/* 4. Input Section & Dropdown Wrapper */}
           <View style={styles.inputAreaWrapper}>
-            {step === 1 ? (
-              <View style={styles.inputContainer}>
-                <TouchableOpacity 
-                  style={styles.countryCodeButton} 
-                  onPress={() => setShowCountryCodePicker(!showCountryCodePicker)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.countryCodeText}>{String(countryCode)}</Text>
-                  <Ionicons 
-                    name={showCountryCodePicker ? "chevron-up" : "chevron-down"} 
-                    size={14} 
-                    color="#6B7280" 
-                    style={{ marginLeft: 4 }} 
-                  />
-                </TouchableOpacity>
-                
-                <View style={styles.dividerVertical} />
-                
-                <TextInput
-                  style={styles.input}
-                  placeholder="Phone number"
-                  placeholderTextColor="#9CA3AF"
-                  keyboardType="phone-pad"
-                  value={phoneNumber}
-                  onChangeText={setPhoneNumber}
-                  autoFocus={true}
-                  maxLength={10} // ✅ จำกัดแค่ 10 หลัก
-                />
-              </View>
-            ) : (
-              <OtpInputRow 
-                otp={otp} 
-                onChangeText={(text, index) => {
-                  const newOtp = [...otp];
-                  newOtp[index] = text;
-                  setOtp(newOtp);
-                }} 
+            <View style={styles.inputContainer}>
+              <Ionicons name="mail-outline" size={20} color="#6B7280" style={{ marginRight: 10 }} />
+              <TextInput
+                style={styles.input}
+                placeholder="Email address"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+                autoFocus={true}
               />
-            )}
-
-            {/* Inline Relative Dropdown */}
-            {step === 1 && showCountryCodePicker && (
-              <View style={styles.inlineCountryDropdown}>
-                {COUNTRY_CODES.map((code, index) => {
-                  const isSelected = countryCode === code;
-                  return (
-                    <TouchableOpacity
-                      key={index}
-                      style={[
-                        styles.inlineDropdownItem, 
-                        isSelected && styles.inlineDropdownItemSelected
-                      ]}
-                      onPress={() => {
-                        setCountryCode(code);
-                        setShowCountryCodePicker(false);
-                      }}
-                    >
-                      <Text style={[
-                        styles.inlineDropdownText, 
-                        isSelected && styles.inlineDropdownTextSelected
-                      ]}>
-                        {String(code)}
-                      </Text>
-                      {isSelected ? (
-                        <Ionicons name="checkmark-circle" size={16} color="#F58882" />
-                      ) : null}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
+            </View>
+            
+            <View style={[styles.inputContainer, { marginTop: 16 }]}>
+              <Ionicons name="lock-closed-outline" size={20} color="#6B7280" style={{ marginRight: 10 }} />
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor="#9CA3AF"
+                secureTextEntry={true}
+                value={password}
+                onChangeText={setPassword}
+              />
+            </View>
           </View>
 
           {/* 5. Action Buttons */}
           <CustomButton 
-            title={step === 1 ? 'Continue' : 'Verify & Login'} 
-            onPress={handleContinue} 
+            title="Login" 
+            onPress={handleLogin} 
           />
 
-          {step === 1 && (
-            <TouchableOpacity 
-              style={{ alignItems: 'center', marginBottom: 20, marginTop: -10 }} 
-              onPress={() => navigation.navigate('ResetPassword')}
-            >
-              <Text style={{ color: '#4B5563', fontSize: 14, fontWeight: '600' }}>
-                Forgot Password? <Text style={{ color: '#F58882' }}>Reset here</Text>
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          <View style={styles.dividerContainer}>
-            <View style={styles.dividerHorizontal} />
-            <Text style={styles.orText}>or</Text>
-            <View style={styles.dividerHorizontal} />
-          </View>
-
-          <SocialButton 
-            iconName="logo-google" 
-            iconColor="#DB4437" 
-            title="Continue with Google" 
-            onPress={() => {}} 
-          />
-
-          <SocialButton 
-            iconName="logo-apple" 
-            iconColor="#000" 
-            title="Continue with Apple" 
-            onPress={() => {}} 
-          />
+          <TouchableOpacity 
+            style={{ alignItems: 'center', marginBottom: 20, marginTop: -10 }} 
+            onPress={() => navigation.navigate('ResetPassword')}
+          >
+            <Text style={{ color: '#4B5563', fontSize: 14, fontWeight: '600' }}>
+              Forgot Password? <Text style={{ color: '#F58882' }}>Reset here</Text>
+            </Text>
+          </TouchableOpacity>
 
           {/* 6. Footer Terms */}
           <View style={{ flex: 1, minHeight: 40 }} />

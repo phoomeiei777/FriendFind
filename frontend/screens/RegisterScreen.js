@@ -26,7 +26,9 @@ export default function RegisterScreen({ navigation }) {
   const [step, setStep] = useState(1);
 
   // States
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState(['', '', '', '']);
   const otpRefs = useRef([]);
   const [name, setName] = useState('');
@@ -39,9 +41,7 @@ export default function RegisterScreen({ navigation }) {
   const [actualOtp, setActualOtp] = useState('');
   const [timeLeft, setTimeLeft] = useState(0);
 
-  const [countryCode, setCountryCode] = useState('+66');
-  const [showCountryCodePicker, setShowCountryCodePicker] = useState(false);
-  const COUNTRY_CODES = ['+66', '+1', '+81', '+44', '+91'];
+
 
   // Custom Toast State (Dynamic Island)
   const [toastMessage, setToastMessage] = useState('');
@@ -154,15 +154,19 @@ export default function RegisterScreen({ navigation }) {
 
   const handleNext = async () => {
     if (step === 1) {
-      if (phoneNumber.length < 9 || phoneNumber.length > 10) {
-        Alert.alert("Failed", "Please enter a valid phone number (9 or 10 digits).");
+      if (!email || !email.includes('@')) {
+        Alert.alert("Failed", "Please enter a valid email address.");
+        return;
+      }
+      if (!password || password.length < 6) {
+        Alert.alert("Failed", "Password must be at least 6 characters.");
         return;
       }
       const generatedOtp = Math.floor(1000 + Math.random() * 9000).toString();
       setActualOtp(generatedOtp);
       setTimeLeft(30);
       setOtp(['', '', '', '']);
-      showToast(`รหัส OTP ของคุณคือ: ${generatedOtp}`);
+      showToast(`OTP for ${email} is: ${generatedOtp}`);
       setStep(2);
     } else if (step === 2) {
       const enteredOtp = otp.join('');
@@ -179,12 +183,11 @@ export default function RegisterScreen({ navigation }) {
       setStep(step + 1);
     } else {
       try {
-        const dummyEmail = `${phoneNumber}@friendfind.app`;
         await register({
-          username: name || phoneNumber,
-          email: `${phoneNumber}@friendfind.app`, // ยังคงใช้ email จำลองเพื่อให้ระบบไม่พัง
-          phone: phoneNumber, // ✅ บันทึกเบอร์โทรศัพท์ลงฟิลด์ phone จริงๆ
-          password: phoneNumber, 
+          username: name || email.split('@')[0],
+          email: email,
+          phone: phone || 'N/A',
+          password: password, 
           faculty: major || 'N/A',
           year: 1,
           interests: `Goals: ${selectedGoals.join(', ')} | Bio: ${bio}`,
@@ -192,7 +195,7 @@ export default function RegisterScreen({ navigation }) {
         });
 
         // Auto-login after registration
-        await login(dummyEmail, phoneNumber);
+        await login(email, password);
         navigation.replace('MainTabs'); // Finished registration
       } catch (error) {
         alert("Registration failed: " + (error.message || "Unknown error"));
@@ -232,46 +235,34 @@ export default function RegisterScreen({ navigation }) {
   const renderStep1 = () => (
     <View style={styles.stepContainer}>
       <Image source={require('../assets/image.png')} style={styles.logo} resizeMode="contain" />
-      <Text style={styles.questionTitle}>What's your phone number?</Text>
+      <Text style={styles.questionTitle}>Create an account</Text>
 
-      <View style={[styles.phoneInputContainer, { zIndex: 999 }]}>
-        <TouchableOpacity style={styles.countryCodeButton} onPress={() => setShowCountryCodePicker(!showCountryCodePicker)}>
-          <Text style={styles.countryCode}>{countryCode}</Text>
-          <Ionicons name="chevron-down" size={16} color="#4B5563" style={{ marginLeft: 4 }} />
-        </TouchableOpacity>
-
-        {/* Inline Relative Dropdown */}
-        {showCountryCodePicker && (
-          <View style={styles.inlineCountryDropdown}>
-            {COUNTRY_CODES.map((code, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[styles.inlineDropdownItem, countryCode === code && styles.inlineDropdownItemSelected]}
-                onPress={() => {
-                  setCountryCode(code);
-                  setShowCountryCodePicker(false);
-                }}
-              >
-                <Text style={[styles.inlineDropdownText, countryCode === code && styles.inlineDropdownTextSelected]}>{code}</Text>
-                {countryCode === code && <Ionicons name="checkmark-circle" size={16} color="#F58882" />}
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        <View style={styles.dividerVertical} />
+      <View style={styles.inputWrapper}>
+        <Ionicons name="mail-outline" size={20} color="#6B7280" style={styles.inputIcon} />
         <TextInput
           style={styles.input}
-          placeholder="Enter phone number"
+          placeholder="Email address"
           placeholderTextColor="#9CA3AF"
-          keyboardType="phone-pad"
-          value={phoneNumber}
-          onChangeText={setPhoneNumber}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          value={email}
+          onChangeText={setEmail}
           autoFocus={true}
-          maxLength={10}
         />
       </View>
-      <Text style={styles.helperText}>We'll send you a verification code to keep your account secure.</Text>
+
+      <View style={[styles.inputWrapper, { marginTop: 12 }]}>
+        <Ionicons name="lock-closed-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Password (min 6 chars)"
+          placeholderTextColor="#9CA3AF"
+          secureTextEntry={true}
+          value={password}
+          onChangeText={setPassword}
+        />
+      </View>
+      <Text style={[styles.helperText, { marginTop: 12 }]}>We'll send a verification code to your email.</Text>
     </View>
   );
 
@@ -279,7 +270,7 @@ export default function RegisterScreen({ navigation }) {
     <View style={styles.stepContainer}>
       <Image source={require('../assets/image.png')} style={styles.logo} resizeMode="contain" />
       <Text style={styles.titleLarge}>ENTER YOUR CONFIRMATION CODE</Text>
-      <Text style={styles.subtitleGray}>Sent to: {countryCode} {phoneNumber || '08xxxxxxxx'}</Text>
+      <Text style={styles.subtitleGray}>Sent to: {email}</Text>
 
       <View style={styles.otpContainer}>
         {otp.map((digit, index) => (
@@ -314,6 +305,18 @@ export default function RegisterScreen({ navigation }) {
         style={styles.formInput}
         value={name}
         onChangeText={setName}
+        placeholder="Enter your name"
+        placeholderTextColor="#9CA3AF"
+      />
+
+      <Text style={styles.inputLabel}>Phone number (Optional)</Text>
+      <TextInput
+        style={styles.formInput}
+        value={phone}
+        onChangeText={setPhone}
+        keyboardType="phone-pad"
+        placeholder="Enter your phone number"
+        placeholderTextColor="#9CA3AF"
       />
 
       <Text style={styles.inputLabel}>When's your birthday?</Text>
@@ -630,7 +633,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     marginBottom: 10,
   },
-  phoneInputContainer: {
+  inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
@@ -640,21 +643,9 @@ const styles = StyleSheet.create({
     height: 55,
     width: '100%',
     paddingHorizontal: 16,
-    marginBottom: 12,
   },
-  countryCodeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  countryCode: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  dividerVertical: {
-    width: 1,
-    height: 24,
-    backgroundColor: '#D1D5DB',
-    marginHorizontal: 12,
+  inputIcon: {
+    marginRight: 10,
   },
   input: {
     flex: 1,
