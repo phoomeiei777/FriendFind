@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
 
 const { width } = Dimensions.get('window');
@@ -187,11 +188,11 @@ export default function RegisterScreen({ navigation }) {
           username: name || email.split('@')[0],
           email: email,
           phone: phone || 'N/A',
-          password: password, 
+          password: password,
           faculty: major || 'N/A',
           year: 1,
           interests: `Goals: ${selectedGoals.join(', ')} | Bio: ${bio}`,
-          profile_image_url: ''
+          profile_image_url: images[0] || ''
         });
 
         // Auto-login after registration
@@ -395,6 +396,57 @@ export default function RegisterScreen({ navigation }) {
 
   const [images, setImages] = useState([null, null, null, null, null, null]);
 
+  const pickImage = async (index) => {
+    Alert.alert(
+      "Select Photo",
+      "Choose an option",
+      [
+        { text: "Camera", onPress: () => openCamera(index) },
+        { text: "Gallery", onPress: () => openLibrary(index) },
+        { text: "Cancel", style: "cancel" }
+      ]
+    );
+  };
+
+  const openCamera = async (index) => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      alert("Camera permission required");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+    if (!result.canceled) {
+      const newImages = [...images];
+      newImages[index] = result.assets[0].uri;
+      setImages(newImages);
+    }
+  };
+
+  const openLibrary = async (index) => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+    if (!result.canceled) {
+      const newImages = [...images];
+      newImages[index] = result.assets[0].uri;
+      setImages(newImages);
+    }
+  };
+
+  const removeImage = (index) => {
+    const newImages = [...images];
+    newImages[index] = null;
+    setImages(newImages);
+  };
+
   const renderStep5 = () => (
     <View style={styles.stepContainer}>
       <View style={styles.textHeaderContainer}>
@@ -406,19 +458,43 @@ export default function RegisterScreen({ navigation }) {
         {[1, 2, 3, 4, 5, 6].map((num, index) => (
           <TouchableOpacity
             key={num}
+            onPress={() => images[index] ? null : pickImage(index)}
             style={[
               styles.photoBox,
               index === 0 ? styles.mainPhotoBox : styles.smallPhotoBox,
-              styles.photoBoxEmpty
+              !images[index] && styles.photoBoxEmpty
             ]}
           >
-            <View style={styles.photoNumberBadge}>
-              <Text style={styles.photoNumberText}>{num}</Text>
-            </View>
-
-            <View style={styles.addIconContainer}>
-              <Ionicons name="add" size={24} color="#FFF" />
-            </View>
+            {images[index] ? (
+              <>
+                <Image source={{ uri: images[index] }} style={{ width: '100%', height: '100%', borderRadius: 12 }} />
+                <TouchableOpacity
+                  style={{
+                    position: 'absolute',
+                    top: -10,
+                    right: -10,
+                    backgroundColor: '#FFF',
+                    borderRadius: 15,
+                    elevation: 5,
+                    shadowColor: '#000',
+                    shadowOpacity: 0.2,
+                    shadowOffset: { width: 0, height: 2 },
+                  }}
+                  onPress={() => removeImage(index)}
+                >
+                  <Ionicons name="close-circle" size={28} color="#F58882" />
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <View style={styles.photoNumberBadge}>
+                  <Text style={styles.photoNumberText}>{num}</Text>
+                </View>
+                <View style={styles.addIconContainer}>
+                  <Ionicons name="add" size={24} color="#FFF" />
+                </View>
+              </>
+            )}
           </TouchableOpacity>
         ))}
       </View>
@@ -480,33 +556,41 @@ export default function RegisterScreen({ navigation }) {
 
           {/* Date Picker Modal */}
           {Platform.OS === 'ios' && showDatePicker && (
-            <Modal transparent animationType="slide">
+            <Modal
+              transparent
+              animationType="slide"
+              visible={showDatePicker}
+            >
               <View style={styles.modalOverlay}>
                 <View style={styles.pickerContainer}>
+
+                  {/* แถบหัวข้อด้านบนที่มีสองปุ่มแยกฝั่งกัน */}
                   <View style={styles.pickerHeader}>
+                    <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                      <Text style={styles.pickerCancelText}>Cancel</Text>
+                    </TouchableOpacity>
+
                     <TouchableOpacity onPress={() => setShowDatePicker(false)}>
                       <Text style={styles.pickerDoneText}>Done</Text>
                     </TouchableOpacity>
                   </View>
-                  <DateTimePicker
-                    value={date}
-                    mode="date"
-                    display="spinner"
-                    onChange={handleDateChange}
-                    maximumDate={new Date()}
-                  />
+
+                  {/* ตัวหมุนเลือกวันที่ (จัดให้อยู่ตรงกลางจอ) */}
+                  <View style={{ width: '100%', alignItems: 'center', justifyContent: 'center' }}>
+                    <DateTimePicker
+                      value={date}
+                      mode="date"
+                      display="spinner"
+                      onChange={handleDateChange}
+                      maximumDate={new Date()}
+                      textColor="black"
+                      style={{ width: '100%' }}
+                    />
+                  </View>
+
                 </View>
               </View>
             </Modal>
-          )}
-          {Platform.OS === 'android' && showDatePicker && (
-            <DateTimePicker
-              value={date}
-              mode="date"
-              display="default"
-              onChange={handleDateChange}
-              maximumDate={new Date()}
-            />
           )}
 
           {/* Gender Picker Bottom Sheet Modal */}
@@ -865,7 +949,7 @@ const styles = StyleSheet.create({
   photoBox: {
     borderRadius: 12,
     position: 'relative',
-    overflow: 'hidden',
+    overflow: 'visible',
   },
   mainPhotoBox: {
     width: '100%', // ปรับให้เต็มกว้างในแถวแรก
@@ -959,10 +1043,14 @@ const styles = StyleSheet.create({
     paddingBottom: 30, // For iOS home indicator safe area
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pickerHeader: {
     width: '100%',
     padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'flex-end',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
