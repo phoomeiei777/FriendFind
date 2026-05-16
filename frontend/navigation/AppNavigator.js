@@ -10,7 +10,7 @@ import ClassScreen from '../screens/ClassScreen';
 import LoaderScreen from '../screens/LoaderScreen';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
-import ResetPasswordScreen from '../screens/ResetPasswordScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import SettingScreen from '../screens/SettingScreen';
 import GroupClassScreen from '../screens/GroupClassScreen';
@@ -96,7 +96,7 @@ function AppContent() {
         <Stack.Screen name="Loader"        component={LoaderScreen} />
         <Stack.Screen name="Login"         component={LoginScreen} />
         <Stack.Screen name="Register"      component={RegisterScreen} />
-        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         <Stack.Screen name="EditProfile"   component={EditProfileScreen} />
         <Stack.Screen name="Setting"       component={SettingScreen} />
         <Stack.Screen name="ChatDetail"    component={ChatDetailScreen} />

@@ -216,6 +216,15 @@ export default function LoginScreen({ navigation }) {
             <Text style={[styles.footerText, { marginTop: 16 }]}>Resend code in {timeLeft}s</Text>
           )}
 
+          {step === 1 && (
+            <TouchableOpacity 
+              style={{ marginTop: 16, alignItems: 'center' }} 
+              onPress={() => navigation.navigate('ForgotPassword')}
+            >
+              <Text style={{ color: '#F58882', fontSize: 14, fontWeight: '600' }}>Forgot Password?</Text>
+            </TouchableOpacity>
+          )}
+
           <View style={{ flex: 1, minHeight: 40 }} />
           <TouchableOpacity 
             style={{ alignItems: 'center', marginBottom: 20 }} 

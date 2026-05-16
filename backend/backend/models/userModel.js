@@ -82,12 +82,13 @@ const fetchAllUsers = async (excludeId) => {
 
 const updateUser = async (userId, userData) => {
   let { profile_image_url } = userData;
-  const { username, faculty, year, interests, images,
+  const { username, email, faculty, year, interests, images,
           pronouns, gender, study_goal, looking_for, study_style, study_time, study_location, study_vibe, strength, weakness } = userData;
   const fields = [];
   const params = [];
 
   if (username !== undefined) { fields.push("username = ?"); params.push(username); }
+  if (email !== undefined)    { fields.push("email = ?");    params.push(email); }
   if (faculty !== undefined)  { fields.push("faculty = ?");  params.push(faculty); }
   if (year !== undefined)     { fields.push("`year` = ?");   params.push(year); }
   if (interests !== undefined){ fields.push("interests = ?");params.push(interests); }

@@ -8,6 +8,8 @@ import {
   Switch,
   Platform,
   Alert,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,8 +21,10 @@ import Header from '../components/Header';
 
 export default function SettingScreen() {
   const navigation = useNavigation();
-  const { user, logout, deleteAccount } = useApp();
+  const { user, logout, deleteAccount, updateProfile } = useApp();
   const { isDark, toggleTheme, theme } = useTheme();
+  const [isEditingEmail, setIsEditingEmail] = React.useState(false);
+  const [newEmail, setNewEmail] = React.useState(user?.email || '');
 
   const username = user?.username || 'Username';
   const phone    = user?.phone    || '08x-xxxx-xxx';
@@ -53,6 +57,20 @@ export default function SettingScreen() {
     );
   };
 
+  const handleUpdateEmail = async () => {
+    if (!newEmail || !newEmail.includes('@')) {
+      Alert.alert("Error", "Please enter a valid email address");
+      return;
+    }
+    try {
+      await updateProfile({ email: newEmail });
+      setIsEditingEmail(false);
+      Alert.alert("Success", "Email updated successfully");
+    } catch (e) {
+      Alert.alert("Error", "Failed to update email");
+    }
+  };
+
   const s = makeStyles(theme, isDark);
 
   return (
@@ -69,8 +87,48 @@ export default function SettingScreen() {
             <View style={s.divider} />
             <InfoRow icon="call-outline"   label="Phone"    value={phone}    theme={theme} s={s} />
             <View style={s.divider} />
-            <InfoRow icon="mail-outline"   label="Email"    value={email}    theme={theme} s={s} />
+            <TouchableOpacity style={s.row} activeOpacity={0.7} onPress={() => {
+              setNewEmail(user?.email || '');
+              setIsEditingEmail(true);
+            }}>
+              <View style={s.rowLeft}>
+                <View style={[s.iconBox, { backgroundColor: theme.surfaceMuted }]}>
+                  <Ionicons name="mail-outline" size={20} color={theme.textMuted} />
+                </View>
+                <View>
+                  <Text style={s.rowHint}>Email</Text>
+                  <Text style={s.rowLabel}>{email}</Text>
+                </View>
+              </View>
+              <Ionicons name="pencil" size={16} color={theme.button} />
+            </TouchableOpacity>
           </View>
+
+          {/* Email Edit Modal */}
+          <Modal visible={isEditingEmail} transparent animationType="fade">
+            <View style={s.modalOverlay}>
+              <View style={s.modalCard}>
+                <Text style={s.modalTitle}>Update Email</Text>
+                <TextInput
+                  style={s.modalInput}
+                  value={newEmail}
+                  onChangeText={setNewEmail}
+                  placeholder="Enter new email"
+                  placeholderTextColor={theme.textMuted}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                />
+                <View style={s.modalButtons}>
+                  <TouchableOpacity style={[s.modalBtn, { backgroundColor: theme.surfaceMuted }]} onPress={() => setIsEditingEmail(false)}>
+                    <Text style={{ color: theme.text }}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[s.modalBtn, { backgroundColor: theme.button }]} onPress={handleUpdateEmail}>
+                    <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Update</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
 
           {/* ── Preferences ── */}
           <Text style={s.sectionLabel}>Preferences</Text>
@@ -195,4 +253,44 @@ const makeStyles = (theme, isDark) => StyleSheet.create({
     color: theme.textMuted,
     marginBottom: 2,
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: theme.surface,
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.text,
+    marginBottom: 16,
+  },
+  modalInput: {
+    backgroundColor: theme.surfaceMuted,
+    borderRadius: 12,
+    padding: 14,
+    color: theme.text,
+    fontSize: 16,
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  }
 });
