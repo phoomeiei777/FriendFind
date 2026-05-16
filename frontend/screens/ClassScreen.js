@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
+import StatusBadge from '../components/StatusBadge';
 import { useNavigation } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
@@ -99,26 +100,20 @@ export default function ClassScreen() {
   const s = makeStyles(theme, isDark);
 
   const renderItem = ({ item, index }) => {
-    const isHot = index < 2;
-    let badgeText = '';
-    let badgeColor = 'transparent';
+    let badgeText = '➕ ขอเข้าร่วม';
+    let statusProp = 'info';
     
     if (item.enrollmentStatus === 'approved') {
       badgeText = '✅ เข้าร่วมแล้ว';
-      badgeColor = '#10B981';
+      statusProp = 'approved';
     } else if (item.enrollmentStatus === 'pending') {
       badgeText = '⏳ รออนุมัติ';
-      badgeColor = '#F59E0B';
-    } else {
-      badgeText = '➕ ขอเข้าร่วม';
-      badgeColor = '#3B82F6';
+      statusProp = 'pending';
     }
 
     return (
       <TouchableOpacity style={s.card} onPress={() => handleSelectSubject(item)} activeOpacity={0.85}>
-        <View style={[s.statusBadge, { backgroundColor: badgeColor }]}>
-          <Text style={s.statusBadgeText}>{badgeText}</Text>
-        </View>
+        <StatusBadge status={statusProp} text={badgeText} />
         <Text style={s.code}>{item.subject_code}</Text>
       </TouchableOpacity>
     );
