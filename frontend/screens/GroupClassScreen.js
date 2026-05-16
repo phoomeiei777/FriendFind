@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
+import StatusBadge from '../components/StatusBadge';
 
 export default function GroupClassScreen({ navigation }) {
   const { activeSubject, fetchGroups, createGroup, user } = useApp();
@@ -96,16 +97,8 @@ export default function GroupClassScreen({ navigation }) {
         <View style={s.cardHeader}>
           <Text style={s.cardTitle}>{item.title}</Text>
           <View style={{ flexDirection: 'row', gap: 6 }}>
-            {isOwner && (
-              <View style={[s.hotBadge, { backgroundColor: '#4DB8FF' }]}>
-                <Text style={s.hotBadgeText}>OWNER</Text>
-              </View>
-            )}
-            {isHot && (
-              <View style={s.hotBadge}>
-                <Text style={s.hotBadgeText}>HOT</Text>
-              </View>
-            )}
+            {isOwner && <StatusBadge status="info" text="OWNER" />}
+            {isHot && <StatusBadge status="hot" text="HOT" />}
           </View>
         </View>
 
