@@ -2,6 +2,7 @@
   "expo": {
     "name": "FriendFind",
     "slug": "frontend",
+    "scheme": "friendfind",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/image1.png",
@@ -29,7 +30,8 @@
     },
     "plugins": [
       "@react-native-community/datetimepicker",
-      "expo-font"
+      "expo-font",
+      "expo-web-browser"
     ]
   }
 }

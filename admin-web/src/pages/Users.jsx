@@ -24,6 +24,13 @@ export default function Users() {
 
   useEffect(() => { fetchUsers(); }, []);
 
+  const getValidImageUrl = (url, username) => {
+    if (!url || url.startsWith('file://')) {
+      return `https://ui-avatars.com/api/?name=${encodeURIComponent(username || 'User')}&background=random`;
+    }
+    return url;
+  };
+
   const handleDelete = (id) => {
     if (window.confirm("Are you sure you want to delete this user?")) {
       axios.delete(`${API_URL}/users/${id}`)
@@ -239,9 +246,13 @@ export default function Users() {
                 <tr key={user.id}>
                   <td>
                     <img
-                      src={user.profile_image_url || 'https://via.placeholder.com/40'}
+                      src={getValidImageUrl(user.profile_image_url, user.username)}
                       alt={user.username}
                       className="user-avatar"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username || 'User')}&background=random`;
+                      }}
                     />
                   </td>
                   <td className="fw-bold">{user.username}</td>
@@ -291,9 +302,13 @@ export default function Users() {
             <div className="modal-body">
               <div className="user-detail-header">
                 <img
-                  src={selectedUser.profile_image_url || 'https://via.placeholder.com/100'}
+                  src={getValidImageUrl(selectedUser.profile_image_url, selectedUser.username)}
                   alt={selectedUser.username}
                   className="detail-avatar"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedUser.username || 'User')}&background=random`;
+                  }}
                 />
                 <div className="detail-title">
                   <h2>{selectedUser.username}</h2>

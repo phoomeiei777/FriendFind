@@ -13,6 +13,7 @@ export function AppProvider({ children }) {
   const [token, setToken] = useState(null);
   const [user, setUser]   = useState(null);
   const [loading, setLoading] = useState(true);
+  const [toastMessage, setToastMessage] = useState('');
 
   // Restore session from storage on mount
   useEffect(() => {
@@ -250,6 +251,47 @@ export function AppProvider({ children }) {
     return data;
   }, [token]);
 
+  const showToast = useCallback((message) => {
+    setToastMessage(message);
+    setTimeout(() => {
+      setToastMessage('');
+    }, 4000);
+  }, []);
+
+  // --- Custom Phone OTP ---
+  const requestOTP = async (phoneNumber) => {
+    try {
+      const data = await apiFetch('/api/auth/send-otp', {
+        method: 'POST',
+        body: JSON.stringify({ phone: phoneNumber }),
+      });
+      return data;
+    } catch (error) {
+      console.error("Error sending OTP:", error);
+      throw error;
+    }
+  };
+
+  const verifyOTP = async (phoneNumber, code) => {
+    try {
+      const data = await apiFetch('/api/auth/verify-otp', {
+        method: 'POST',
+        body: JSON.stringify({ phone: phoneNumber, code }),
+      });
+
+      if (!data.isNewUser && data.token) {
+        setToken(data.token);
+        setUser(data.user);
+        await AsyncStorage.setItem(STORAGE_TOKEN, data.token);
+        await AsyncStorage.setItem(STORAGE_USER, JSON.stringify(data.user));
+      }
+      return data;
+    } catch (error) {
+      console.error("Error verifying OTP:", error);
+      throw error;
+    }
+  };
+
   const deleteAccount = useCallback(async () => {
     await apiFetch('/api/users/profile', {
       method: 'DELETE',
@@ -295,6 +337,11 @@ export function AppProvider({ children }) {
     fetchMessages,
     updateProfile,
     deleteAccount,
+    showToast,
+    toastMessage,
+    setToastMessage,
+    requestOTP,
+    verifyOTP,
     enrollSubject,
     fetchMyEnrollments,
     fetchMyApprovedSubjects,
@@ -308,6 +355,8 @@ export function AppProvider({ children }) {
     fetchGroups, fetchMyGroups, createGroup, joinGroup,
     fetchGroupMembers, updateMemberStatus, deleteGroup, leaveGroup,
     recordSwipe, fetchMatches, sendMessage, fetchMessages, updateProfile, deleteAccount,
+    showToast, toastMessage,
+    requestOTP, verifyOTP,
     enrollSubject, fetchMyEnrollments, fetchMyApprovedSubjects,
   ]);
 

@@ -1,13 +1,13 @@
 const db = require("../config/db");
 
 const createUser = async (userData) => {
-  const { username, email, phone, passwordHash, faculty, year, interests, profileImageUrl } = userData;
+  const { username, email, phone, passwordHash, faculty, year, interests, profileImageUrl, firebase_uid } = userData;
 
   const [result] = await db.execute(
     `INSERT INTO users
-      (username, email, phone, password_hash, faculty, \`year\`, interests, profile_image_url)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [username, email, phone || null, passwordHash, faculty || null, year || null, interests || null, profileImageUrl || null]
+      (username, email, phone, password_hash, faculty, \`year\`, interests, profile_image_url, firebase_uid)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [username, email, phone || null, passwordHash, faculty || null, year || null, interests || null, profileImageUrl || null, firebase_uid || null]
   );
 
   return result.insertId;
