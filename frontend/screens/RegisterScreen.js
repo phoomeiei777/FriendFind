@@ -53,7 +53,7 @@ export default function RegisterScreen({ navigation }) {
 
 
   // Custom Toast from Global Context
-  const { showToast, requestOTP, verifyOTP, register, login } = useApp();
+  const { showToast, requestOTP, verifyOTP, register, login, checkAvailability } = useApp();
 
   // UI States for Pickers
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -107,18 +107,19 @@ export default function RegisterScreen({ navigation }) {
 
   const handleNext = async () => {
     if (step === 1) {
-      if (!phone || phone.length < 10) {
-        Alert.alert('Error', 'Please enter a valid phone number');
-        return;
-      }
-      
       try {
         if (registerMethod === 'email') {
           if (!email || !password) {
             Alert.alert('Error', 'Please enter email and password');
             return;
           }
-          setStep(3); // Go directly to name collection
+          setStep(3); 
+          return;
+        }
+
+        // Phone path
+        if (!phone || phone.length < 10) {
+          Alert.alert('Error', 'Please enter a valid phone number');
           return;
         }
 
@@ -148,13 +149,16 @@ export default function RegisterScreen({ navigation }) {
         Alert.alert('Error', 'Please enter a valid 6-digit code');
         return;
       }
-      if (!email) {
-        Alert.alert('Error', 'Please enter your email address');
+      if (!email || !email.includes('@')) {
+        Alert.alert('Error', 'Please enter a valid email address');
         return;
       }
 
       setIsProcessing(true);
       try {
+        // Check if email is already taken before verifying OTP
+        await checkAvailability(email, null);
+        
         const syncResult = await verifyOTP(phone, enteredOtp);
         
         if (syncResult.isNewUser) {
@@ -166,6 +170,39 @@ export default function RegisterScreen({ navigation }) {
         }
       } catch (error) {
         Alert.alert('Error', 'Invalid code or connection error.');
+      } finally {
+        setIsProcessing(false);
+      }
+      return;
+    }
+
+    if (step === 3) {
+      if (!name || !birthday || !gender || !major) {
+        Alert.alert('Error', 'Please fill in all profile fields');
+        return;
+      }
+      if (!phone || phone.length < 10) {
+        Alert.alert('Error', 'Please enter a valid phone number');
+        return;
+      }
+
+      setIsProcessing(true);
+      try {
+        // Format phone for check
+        let formattedPhone = phone;
+        if (phone && phone.startsWith('0')) {
+          formattedPhone = '+66' + phone.substring(1);
+        } else if (phone && !phone.startsWith('+')) {
+          formattedPhone = '+66' + phone;
+        }
+
+        // Only check phone if it's new (for email path) or email if it's new
+        await checkAvailability(email, formattedPhone);
+        
+        setPhone(formattedPhone);
+        setStep(4);
+      } catch (error) {
+        Alert.alert('Error', error.message || 'Email or Phone already registered');
       } finally {
         setIsProcessing(false);
       }
@@ -199,7 +236,11 @@ export default function RegisterScreen({ navigation }) {
 
   const handleBack = () => {
     if (step > 1) {
-      setStep(step - 1);
+      if (step === 3 && registerMethod === 'email') {
+        setStep(1);
+      } else {
+        setStep(step - 1);
+      }
     } else {
       navigation.goBack();
     }
@@ -381,7 +422,26 @@ export default function RegisterScreen({ navigation }) {
         style={styles.formInput}
         value={major}
         onChangeText={setMajor}
+        placeholder="e.g. Computer Science"
+        placeholderTextColor="#9CA3AF"
       />
+
+      {registerMethod === 'email' && (
+        <>
+          <Text style={styles.inputLabel}>Phone Number (Optional)</Text>
+          <View style={styles.inputWrapper}>
+            <Ionicons name="call-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="081 234 5678"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="phone-pad"
+              value={phone}
+              onChangeText={setPhone}
+            />
+          </View>
+        </>
+      )}
     </View>
   );
 
@@ -652,7 +712,7 @@ export default function RegisterScreen({ navigation }) {
                 <ActivityIndicator color="#FFF" />
               ) : (
                 <Text style={styles.buttonText}>
-                  {step === 1 ? 'Send code' : step === 5 ? 'Create Account' : 'CONTINUE'}
+                  {step === 1 ? (registerMethod === 'email' ? 'CONTINUE' : 'Send code') : step === 5 ? 'Create Account' : 'CONTINUE'}
                 </Text>
               )}
             </TouchableOpacity>

@@ -292,6 +292,13 @@ export function AppProvider({ children }) {
     }
   };
 
+  const checkAvailability = async (email, phone) => {
+    return apiFetch('/api/auth/check-availability', {
+      method: 'POST',
+      body: JSON.stringify({ email, phone }),
+    });
+  };
+
   const deleteAccount = useCallback(async () => {
     await apiFetch('/api/users/profile', {
       method: 'DELETE',
@@ -342,6 +349,7 @@ export function AppProvider({ children }) {
     setToastMessage,
     requestOTP,
     verifyOTP,
+    checkAvailability,
     enrollSubject,
     fetchMyEnrollments,
     fetchMyApprovedSubjects,

@@ -229,4 +229,32 @@ const verifyOtp = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, resetPassword, sendOtp, verifyOtp };
+const checkAvailability = async (req, res, next) => {
+  try {
+    const { email, phone } = req.body;
+    if (!email && !phone) return res.status(400).json({ message: "email or phone is required" });
+
+    let query = "SELECT id FROM users WHERE ";
+    let params = [];
+    if (email && phone) {
+      query += "email = ? OR phone = ?";
+      params = [email, phone];
+    } else if (email) {
+      query += "email = ?";
+      params = [email];
+    } else {
+      query += "phone = ?";
+      params = [phone];
+    }
+
+    const [rows] = await db.execute(query, params);
+    if (rows.length > 0) {
+      return res.status(409).json({ message: "Email or phone already registered" });
+    }
+    return res.json({ available: true });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+module.exports = { register, login, resetPassword, sendOtp, verifyOtp, checkAvailability };
