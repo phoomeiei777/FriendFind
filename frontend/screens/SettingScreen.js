@@ -18,7 +18,7 @@ import Header from '../components/Header';
 
 export default function SettingScreen() {
   const navigation = useNavigation();
-  const { user, logout } = useApp();
+  const { user, logout, deleteAccount } = useApp();
   const { isDark, toggleTheme, theme } = useTheme();
 
   const username = user?.username || 'Username';
@@ -28,6 +28,28 @@ export default function SettingScreen() {
   const handleLogout = () => {
     logout();
     navigation.reset({ index: 0, routes: [{ name: 'Loader' }] });
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to delete your account? This action is permanent and all your data will be removed.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive", 
+          onPress: async () => {
+            try {
+              await deleteAccount();
+              navigation.reset({ index: 0, routes: [{ name: 'Loader' }] });
+            } catch (e) {
+              Alert.alert("Error", "Failed to delete account. Please try again.");
+            }
+          } 
+        }
+      ]
+    );
   };
 
   const s = makeStyles(theme, isDark);
@@ -82,7 +104,7 @@ export default function SettingScreen() {
               <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
             </TouchableOpacity>
             <View style={s.divider} />
-            <TouchableOpacity style={s.row} activeOpacity={0.7}>
+            <TouchableOpacity style={s.row} activeOpacity={0.7} onPress={handleDeleteAccount}>
               <View style={s.rowLeft}>
                 <View style={[s.iconBox, { backgroundColor: '#FEE2E2' }]}>
                   <Ionicons name="trash-outline" size={20} color="#DC2626" />

@@ -250,6 +250,21 @@ export function AppProvider({ children }) {
     return data;
   }, [token]);
 
+  const deleteAccount = useCallback(async () => {
+    await apiFetch('/api/users/profile', {
+      method: 'DELETE',
+      headers: authHeaders(token),
+    });
+    // Logout locally after deletion
+    setToken(null);
+    setUser(null);
+    try {
+      await AsyncStorage.multiRemove([STORAGE_TOKEN, STORAGE_USER, STORAGE_SUBJECT]);
+    } catch (e) {
+      console.warn('AsyncStorage error:', e);
+    }
+  }, [token]);
+
   // ─── Context Value ────────────────────────────────────────────
   const value = useMemo(() => ({
     loading,
@@ -279,6 +294,7 @@ export function AppProvider({ children }) {
     sendMessage,
     fetchMessages,
     updateProfile,
+    deleteAccount,
     enrollSubject,
     fetchMyEnrollments,
     fetchMyApprovedSubjects,
@@ -291,7 +307,7 @@ export function AppProvider({ children }) {
     fetchSubjects, fetchAllUsers, fetchUsersByActiveSubject, fetchUsersBySubject,
     fetchGroups, fetchMyGroups, createGroup, joinGroup,
     fetchGroupMembers, updateMemberStatus, deleteGroup, leaveGroup,
-    recordSwipe, fetchMatches, sendMessage, fetchMessages, updateProfile,
+    recordSwipe, fetchMatches, sendMessage, fetchMessages, updateProfile, deleteAccount,
     enrollSubject, fetchMyEnrollments, fetchMyApprovedSubjects,
   ]);
 

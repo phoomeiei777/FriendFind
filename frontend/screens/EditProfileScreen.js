@@ -95,8 +95,8 @@ export default function EditProfileScreen() {
     }
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
+      allowsEditing: false,
+      aspect: [16, 9],
       quality: 0.5,
     });
     if (!result.canceled) {
@@ -107,8 +107,8 @@ export default function EditProfileScreen() {
   const openLibrary = async (index) => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
+      allowsEditing: false,
+      aspect: [16, 9],
       quality: 0.5,
     });
     if (!result.canceled) {

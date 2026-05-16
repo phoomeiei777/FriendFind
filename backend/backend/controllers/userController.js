@@ -1,4 +1,4 @@
-const { fetchUsersByActiveSubject, fetchAllUsers, updateUser } = require("../models/userModel");
+const { fetchUsersByActiveSubject, fetchAllUsers, updateUser, deleteUser } = require("../models/userModel");
 
 const getUsersByActiveSubject = async (req, res, next) => {
   try {
@@ -46,4 +46,20 @@ const updateProfile = async (req, res, next) => {
   }
 };
 
-module.exports = { getUsersByActiveSubject, getAllUsers, updateProfile };
+/**
+ * DELETE /api/users/profile
+ */
+const deleteAccount = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const deleted = await deleteUser(userId);
+    if (!deleted) {
+      return res.status(404).json({ message: "User not found." });
+    }
+    return res.json({ message: "Account deleted successfully." });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+module.exports = { getUsersByActiveSubject, getAllUsers, updateProfile, deleteAccount };

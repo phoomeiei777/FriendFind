@@ -1,5 +1,5 @@
 const express = require("express");
-const { getUsersByActiveSubject, getAllUsers, updateProfile } = require("../controllers/userController");
+const { getUsersByActiveSubject, getAllUsers, updateProfile, deleteAccount } = require("../controllers/userController");
 const { requireAuth } = require("../middleware/authMiddleware");
 
 const router = express.Router();
@@ -18,5 +18,6 @@ const optionalAuth = (req, res, next) => {
 router.get("/active-subject/:subjectCode", optionalAuth, getUsersByActiveSubject);
 router.get("/", optionalAuth, getAllUsers);
 router.patch("/profile", requireAuth, updateProfile);
+router.delete("/profile", requireAuth, deleteAccount);
 
 module.exports = router;

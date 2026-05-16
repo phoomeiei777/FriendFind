@@ -163,6 +163,11 @@ const updatePasswordByIdentity = async (identity, passwordHash) => {
   return result.affectedRows > 0;
 };
 
+const deleteUser = async (userId) => {
+  const [result] = await db.execute("DELETE FROM users WHERE id = ?", [userId]);
+  return result.affectedRows > 0;
+};
+
 module.exports = {
   createUser,
   findUserByEmail,
@@ -172,4 +177,5 @@ module.exports = {
   updateUser,
   updateUserImages,
   updatePasswordByIdentity,
+  deleteUser,
 };

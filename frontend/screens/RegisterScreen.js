@@ -22,6 +22,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
 
 const { width } = Dimensions.get('window');
+const SPACING = 10;
+const GRID_PADDING = 24;
+const COL_WIDTH = (width - GRID_PADDING * 2 - SPACING * 2) / 3;
 
 export default function RegisterScreen({ navigation }) {
   const [step, setStep] = useState(1);
@@ -416,8 +419,8 @@ export default function RegisterScreen({ navigation }) {
     }
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
+      allowsEditing: false,
+      aspect: [16, 9],
       quality: 0.5,
     });
     if (!result.canceled) {
@@ -430,8 +433,8 @@ export default function RegisterScreen({ navigation }) {
   const openLibrary = async (index) => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
+      allowsEditing: false,
+      aspect: [16, 9],
       quality: 0.5,
     });
     if (!result.canceled) {
@@ -447,6 +450,42 @@ export default function RegisterScreen({ navigation }) {
     setImages(newImages);
   };
 
+  const renderImageSlot = (index, w, h) => {
+    const uri = images[index];
+    const num = index + 1;
+    return (
+      <TouchableOpacity
+        onPress={() => uri ? null : pickImage(index)}
+        style={[
+          styles.photoBox,
+          { width: w, height: h },
+          !uri && styles.photoBoxEmpty
+        ]}
+      >
+        {uri ? (
+          <>
+            <Image source={{ uri }} style={{ width: '100%', height: '100%', borderRadius: 12 }} />
+            <TouchableOpacity
+              style={styles.deleteBtnSmall}
+              onPress={() => removeImage(index)}
+            >
+              <Ionicons name="close-circle" size={24} color="#F58882" />
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <View style={styles.photoNumberBadge}>
+              <Text style={styles.photoNumberText}>{num}</Text>
+            </View>
+            <View style={styles.addIconContainer}>
+              <Ionicons name="add" size={24} color="#FFF" />
+            </View>
+          </>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
   const renderStep5 = () => (
     <View style={styles.stepContainer}>
       <View style={styles.textHeaderContainer}>
@@ -454,49 +493,19 @@ export default function RegisterScreen({ navigation }) {
         <Text style={styles.subtitleStep5}>Add at least 2 photos to stand out</Text>
       </View>
 
-      <View style={styles.photosGrid}>
-        {[1, 2, 3, 4, 5, 6].map((num, index) => (
-          <TouchableOpacity
-            key={num}
-            onPress={() => images[index] ? null : pickImage(index)}
-            style={[
-              styles.photoBox,
-              index === 0 ? styles.mainPhotoBox : styles.smallPhotoBox,
-              !images[index] && styles.photoBoxEmpty
-            ]}
-          >
-            {images[index] ? (
-              <>
-                <Image source={{ uri: images[index] }} style={{ width: '100%', height: '100%', borderRadius: 12 }} />
-                <TouchableOpacity
-                  style={{
-                    position: 'absolute',
-                    top: -10,
-                    right: -10,
-                    backgroundColor: '#FFF',
-                    borderRadius: 15,
-                    elevation: 5,
-                    shadowColor: '#000',
-                    shadowOpacity: 0.2,
-                    shadowOffset: { width: 0, height: 2 },
-                  }}
-                  onPress={() => removeImage(index)}
-                >
-                  <Ionicons name="close-circle" size={28} color="#F58882" />
-                </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                <View style={styles.photoNumberBadge}>
-                  <Text style={styles.photoNumberText}>{num}</Text>
-                </View>
-                <View style={styles.addIconContainer}>
-                  <Ionicons name="add" size={24} color="#FFF" />
-                </View>
-              </>
-            )}
-          </TouchableOpacity>
-        ))}
+      <View style={styles.gridContainerAlt}>
+        <View style={styles.rowAlt}>
+          {renderImageSlot(0, COL_WIDTH * 2 + SPACING, 200)}
+          <View style={{ justifyContent: 'space-between' }}>
+            {renderImageSlot(1, COL_WIDTH, 95)}
+            {renderImageSlot(2, COL_WIDTH, 95)}
+          </View>
+        </View>
+        <View style={styles.rowAlt}>
+          {renderImageSlot(3, COL_WIDTH, 140)}
+          {renderImageSlot(4, COL_WIDTH, 140)}
+          {renderImageSlot(5, COL_WIDTH, 140)}
+        </View>
       </View>
 
       <View style={styles.bioSection}>
@@ -939,27 +948,18 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 6,
   },
-  photosGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  gridContainerAlt: {
     width: '100%',
-    gap: 10, // ใช้ gap แทนการคำนวณ margin เอง (ถ้า React Native version รองรับ)
-    justifyContent: 'center', // จัดกลางเพื่อความสมดุล
+  },
+  rowAlt: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: SPACING,
   },
   photoBox: {
-    borderRadius: 12,
     position: 'relative',
-    overflow: 'visible',
-  },
-  mainPhotoBox: {
-    width: '100%', // ปรับให้เต็มกว้างในแถวแรก
-    height: 180,
-    marginBottom: 5,
-  },
-  // ปรับขนาดรูปเล็ก 2-6 (แถวละ 3 รูป)
-  smallPhotoBox: {
-    width: (width - 48 - 20) / 3,
-    height: 120,
+    borderRadius: 16,
+    overflow: 'visible', // Ensure close icon is visible
   },
   photoBoxEmpty: {
     backgroundColor: '#FFF',
@@ -968,6 +968,18 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  deleteBtnSmall: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 1 },
+    zIndex: 10,
   },
   // สไตล์ปุ่มบวก (+)
   addIconContainer: {
