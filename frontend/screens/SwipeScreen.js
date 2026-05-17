@@ -160,28 +160,44 @@ export default function SwipeScreen({ navigation }) {
   }, [position]);
 
   useEffect(() => {
-    Accelerometer.setUpdateInterval(100);
+    let subscription;
     let isAlertShowing = false;
 
-    const subscription = Accelerometer.addListener(({ x }) => {
-      const isTiltingLeft = x > 0.6;
-      // เช็คว่าเอียงซ้าย และไม่ได้แสดง Alert อยู่ และมีโปรไฟล์ก่อนหน้าให้กู้คืน
-      if (isTiltingLeft && !isAlertShowing && indexRef.current > 0) {
-        console.log(`[Sensor] 🔄 เอียงซ้ายสำเร็จ! กำลังเรียกคืนโปรไฟล์... (ค่า X: ${x.toFixed(2)})`);
-        isAlertShowing = true;
-        Alert.alert(
-          "เลิกทำ (Undo)",
-          "ต้องการเรียกคืนโปรไฟล์ล่าสุดหรือไม่?",
-          [
-            { text: "ยกเลิก", style: "cancel", onPress: () => { isAlertShowing = false; } },
-            { text: "ตกลง", onPress: () => { undoSwipe(); isAlertShowing = false; } }
-          ],
-          { cancelable: false }
-        );
-      }
-    });
+    const initSensor = async () => {
+      try {
+        const isAvailable = await Accelerometer.isAvailableAsync();
+        if (!isAvailable) return;
 
-    return () => subscription.remove();
+        Accelerometer.setUpdateInterval(100);
+        subscription = Accelerometer.addListener(({ x }) => {
+          const isTiltingLeft = x > 0.6;
+          // เช็คว่าเอียงซ้าย และไม่ได้แสดง Alert อยู่ และมีโปรไฟล์ก่อนหน้าให้กู้คืน
+          if (isTiltingLeft && !isAlertShowing && indexRef.current > 0) {
+            console.log(`[Sensor] 🔄 เอียงซ้ายสำเร็จ! กำลังเรียกคืนโปรไฟล์... (ค่า X: ${x.toFixed(2)})`);
+            isAlertShowing = true;
+            Alert.alert(
+              "เลิกทำ (Undo)",
+              "ต้องการเรียกคืนโปรไฟล์ล่าสุดหรือไม่?",
+              [
+                { text: "ยกเลิก", style: "cancel", onPress: () => { isAlertShowing = false; } },
+                { text: "ตกลง", onPress: () => { undoSwipe(); isAlertShowing = false; } }
+              ],
+              { cancelable: false }
+            );
+          }
+        });
+      } catch (error) {
+        console.warn("Sensor not available:", error);
+      }
+    };
+
+    if (Platform.OS !== 'web') {
+      initSensor();
+    }
+
+    return () => {
+      if (subscription) subscription.remove();
+    };
   }, [undoSwipe]);
 
   const panResponder = useRef(

@@ -35,7 +35,10 @@ export function getApiBase() {
   const extra = Constants.expoConfig?.extra || {};
 
   if (Platform.OS === 'web') {
-    // เบราว์เซอร์บนเครื่องเดียวกับ Docker: map พอร์ต host เช่น 5000:5000 → ใช้ localhost
+    // ดึง IP/Hostname จากเบราว์เซอร์อัตโนมัติ เพื่อให้เครื่องอื่นในวงแลนล็อคอินได้
+    if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+      return `http://${window.location.hostname}:${DEFAULT_PORT}`;
+    }
     return extra.apiBaseWeb || DEFAULT_WEB;
   }
 
