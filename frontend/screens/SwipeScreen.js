@@ -18,6 +18,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import MatchOverlay from '../components/MatchOverlay';
@@ -63,15 +64,17 @@ export default function SwipeScreen({ navigation }) {
     setImageIndex(0);
   }, [index]);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await fetchMyApprovedSubjects();
-        setSubjects(data.subjects || []);
-      } catch {}
-    };
-    load();
-  }, [fetchMyApprovedSubjects]);
+  useFocusEffect(
+    useCallback(() => {
+      const load = async () => {
+        try {
+          const data = await fetchMyApprovedSubjects();
+          setSubjects(data.subjects || []);
+        } catch {}
+      };
+      load();
+    }, [fetchMyApprovedSubjects])
+  );
 
   const loadUsers = useCallback(async () => {
     setLoading(true);

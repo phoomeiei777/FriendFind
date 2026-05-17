@@ -31,7 +31,6 @@ export default function StatusBadge({ status, text }) {
   };
 
   const colors = getColors();
-
   return (
     <View style={[styles.badgeContainer, { backgroundColor: colors.bg }]}>
       <Text style={[styles.badgeText, { color: colors.text }]}>{text || status}</Text>

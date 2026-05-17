@@ -29,11 +29,11 @@ const COL_WIDTH = (width - GRID_PADDING * 2 - SPACING * 2) / 3;
 
 export default function RegisterScreen({ navigation }) {
   const [step, setStep] = useState(1);
-  const [registerMethod, setRegisterMethod] = useState('phone'); // 'phone' or 'email'
 
   // States
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const otpRefs = useRef([]);
@@ -107,30 +107,33 @@ export default function RegisterScreen({ navigation }) {
 
   const handleNext = async () => {
     if (step === 1) {
+      if (!email || !email.includes('@')) {
+        Alert.alert('Error', 'Please enter a valid email address');
+        return;
+      }
+      if (!password || password.length < 6) {
+        Alert.alert('Error', 'Password must be at least 6 characters');
+        return;
+      }
+      if (password !== confirmPassword) {
+        Alert.alert('Error', 'Passwords do not match');
+        return;
+      }
+      if (!phone || phone.length < 10) {
+        Alert.alert('Error', 'Please enter a valid phone number');
+        return;
+      }
+
+      let formattedPhone = phone;
+      if (phone.startsWith('0')) {
+        formattedPhone = '+66' + phone.substring(1);
+      } else if (!phone.startsWith('+')) {
+        formattedPhone = '+66' + phone;
+      }
+
+      setIsProcessing(true);
       try {
-        if (registerMethod === 'email') {
-          if (!email || !password) {
-            Alert.alert('Error', 'Please enter email and password');
-            return;
-          }
-          setStep(3); 
-          return;
-        }
-
-        // Phone path
-        if (!phone || phone.length < 10) {
-          Alert.alert('Error', 'Please enter a valid phone number');
-          return;
-        }
-
-        let formattedPhone = phone;
-        if (phone.startsWith('0')) {
-          formattedPhone = '+66' + phone.substring(1);
-        } else if (!phone.startsWith('+')) {
-          formattedPhone = '+66' + phone;
-        }
-
-        setIsProcessing(true);
+        await checkAvailability(email, formattedPhone);
         await requestOTP(formattedPhone);
         setPhone(formattedPhone); 
         setIsProcessing(false);
@@ -138,7 +141,7 @@ export default function RegisterScreen({ navigation }) {
         setTimeLeft(60);
       } catch (error) {
         setIsProcessing(false);
-        Alert.alert('Error', error.message || 'Failed to send OTP');
+        Alert.alert('Error', error.message || 'Email or Phone already registered, or Failed to send OTP');
       }
       return;
     }
@@ -149,16 +152,8 @@ export default function RegisterScreen({ navigation }) {
         Alert.alert('Error', 'Please enter a valid 6-digit code');
         return;
       }
-      if (!email || !email.includes('@')) {
-        Alert.alert('Error', 'Please enter a valid email address');
-        return;
-      }
-
       setIsProcessing(true);
       try {
-        // Check if email is already taken before verifying OTP
-        await checkAvailability(email, null);
-        
         const syncResult = await verifyOTP(phone, enteredOtp);
         
         if (syncResult.isNewUser) {
@@ -181,31 +176,7 @@ export default function RegisterScreen({ navigation }) {
         Alert.alert('Error', 'Please fill in all profile fields');
         return;
       }
-      if (!phone || phone.length < 10) {
-        Alert.alert('Error', 'Please enter a valid phone number');
-        return;
-      }
-
-      setIsProcessing(true);
-      try {
-        // Format phone for check
-        let formattedPhone = phone;
-        if (phone && phone.startsWith('0')) {
-          formattedPhone = '+66' + phone.substring(1);
-        } else if (phone && !phone.startsWith('+')) {
-          formattedPhone = '+66' + phone;
-        }
-
-        // Only check phone if it's new (for email path) or email if it's new
-        await checkAvailability(email, formattedPhone);
-        
-        setPhone(formattedPhone);
-        setStep(4);
-      } catch (error) {
-        Alert.alert('Error', error.message || 'Email or Phone already registered');
-      } finally {
-        setIsProcessing(false);
-      }
+      setStep(4);
       return;
     }
 
@@ -236,11 +207,7 @@ export default function RegisterScreen({ navigation }) {
 
   const handleBack = () => {
     if (step > 1) {
-      if (step === 3 && registerMethod === 'email') {
-        setStep(1);
-      } else {
-        setStep(step - 1);
-      }
+      setStep(step - 1);
     } else {
       navigation.goBack();
     }
@@ -270,67 +237,54 @@ export default function RegisterScreen({ navigation }) {
   const renderStep1 = () => (
     <View style={styles.stepContainer}>
       <Image source={require('../assets/image.png')} style={styles.logo} resizeMode="contain" />
-      
-      <View style={styles.methodToggle}>
-        <TouchableOpacity 
-          style={[styles.methodBtn, registerMethod === 'phone' && styles.methodBtnActive]}
-          onPress={() => setRegisterMethod('phone')}
-        >
-          <Text style={[styles.methodText, registerMethod === 'phone' && styles.methodTextActive]}>Phone</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.methodBtn, registerMethod === 'email' && styles.methodBtnActive]}
-          onPress={() => setRegisterMethod('email')}
-        >
-          <Text style={[styles.methodText, registerMethod === 'email' && styles.methodTextActive]}>Email</Text>
-        </TouchableOpacity>
-      </View>
+      <Text style={styles.questionTitle}>Create Account</Text>
 
-      {registerMethod === 'phone' ? (
-        <>
-          <Text style={styles.questionTitle}>Verify your phone</Text>
-          <View style={styles.inputWrapper}>
-            <Ionicons name="call-outline" size={20} color="#6B7280" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Phone number (e.g. 0812345678)"
-              placeholderTextColor="#9CA3AF"
-              keyboardType="phone-pad"
-              value={phone}
-              onChangeText={setPhone}
-              autoFocus={true}
-            />
-          </View>
-          <Text style={[styles.helperText, { marginTop: 12 }]}>We'll send a 6-digit code to verify your phone.</Text>
-        </>
-      ) : (
-        <>
-          <Text style={styles.questionTitle}>Create with Email</Text>
-          <View style={[styles.inputWrapper, { marginBottom: 12 }]}>
-            <Ionicons name="mail-outline" size={20} color="#6B7280" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Email address"
-              placeholderTextColor="#9CA3AF"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={email}
-              onChangeText={setEmail}
-            />
-          </View>
-          <View style={styles.inputWrapper}>
-            <Ionicons name="lock-closed-outline" size={20} color="#6B7280" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor="#9CA3AF"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-            />
-          </View>
-        </>
-      )}
+      <View style={[styles.inputWrapper, { marginBottom: 12 }]}>
+        <Ionicons name="mail-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Email address"
+          placeholderTextColor="#9CA3AF"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          value={email}
+          onChangeText={setEmail}
+        />
+      </View>
+      <View style={[styles.inputWrapper, { marginBottom: 12 }]}>
+        <Ionicons name="lock-closed-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          placeholderTextColor="#9CA3AF"
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+        />
+      </View>
+      <View style={[styles.inputWrapper, { marginBottom: 12 }]}>
+        <Ionicons name="lock-closed-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Confirm Password"
+          placeholderTextColor="#9CA3AF"
+          secureTextEntry
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+        />
+      </View>
+      <View style={styles.inputWrapper}>
+        <Ionicons name="call-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Phone number (e.g. 0812345678)"
+          placeholderTextColor="#9CA3AF"
+          keyboardType="phone-pad"
+          value={phone}
+          onChangeText={setPhone}
+        />
+      </View>
+      <Text style={[styles.helperText, { marginTop: 12 }]}>We'll send a 6-digit code to verify your phone.</Text>
     </View>
   );
 
@@ -354,26 +308,12 @@ export default function RegisterScreen({ navigation }) {
         ))}
       </View>
 
-      <Text style={[styles.inputLabel, { marginTop: 10 }]}>Your Email Address</Text>
-      <View style={styles.inputWrapper}>
-        <Ionicons name="mail-outline" size={20} color="#6B7280" style={styles.inputIcon} />
-        <TextInput
-          style={styles.input}
-          placeholder="email@example.com"
-          placeholderTextColor="#9CA3AF"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          value={email}
-          onChangeText={setEmail}
-        />
-      </View>
-
       {timeLeft > 0 ? (
         <Text style={styles.timerText}>
           Resend in <Text style={{ color: '#F58882', fontWeight: 'bold' }}>{timeLeft}</Text> seconds
         </Text>
       ) : (
-        <TouchableOpacity onPress={resendOtp}>
+        <TouchableOpacity onPress={resendOtp} style={{ marginTop: 20 }}>
           <Text style={styles.resendText}>Didn't receive the code? Resend OTP</Text>
         </TouchableOpacity>
       )}
@@ -426,22 +366,7 @@ export default function RegisterScreen({ navigation }) {
         placeholderTextColor="#9CA3AF"
       />
 
-      {registerMethod === 'email' && (
-        <>
-          <Text style={styles.inputLabel}>Phone Number (Optional)</Text>
-          <View style={styles.inputWrapper}>
-            <Ionicons name="call-outline" size={20} color="#6B7280" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="081 234 5678"
-              placeholderTextColor="#9CA3AF"
-              keyboardType="phone-pad"
-              value={phone}
-              onChangeText={setPhone}
-            />
-          </View>
-        </>
-      )}
+
     </View>
   );
 
@@ -712,7 +637,7 @@ export default function RegisterScreen({ navigation }) {
                 <ActivityIndicator color="#FFF" />
               ) : (
                 <Text style={styles.buttonText}>
-                  {step === 1 ? (registerMethod === 'email' ? 'CONTINUE' : 'Send code') : step === 5 ? 'Create Account' : 'CONTINUE'}
+                  {step === 1 ? 'Send code' : step === 5 ? 'Create Account' : 'CONTINUE'}
                 </Text>
               )}
             </TouchableOpacity>

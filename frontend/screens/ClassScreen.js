@@ -99,22 +99,39 @@ export default function ClassScreen() {
 
   const s = makeStyles(theme, isDark);
 
-  const renderItem = ({ item, index }) => {
-    let badgeText = '➕ ขอเข้าร่วม';
+  const renderItem = ({ item }) => {
+    let badgeText = ' ขอเข้าร่วม';
     let statusProp = 'info';
     
     if (item.enrollmentStatus === 'approved') {
-      badgeText = '✅ เข้าร่วมแล้ว';
+      badgeText = ' เข้ากลุ่มแล้ว';
       statusProp = 'approved';
     } else if (item.enrollmentStatus === 'pending') {
-      badgeText = '⏳ รออนุมัติ';
+      badgeText = ' รออนุมัติ';
       statusProp = 'pending';
     }
 
     return (
-      <TouchableOpacity style={s.card} onPress={() => handleSelectSubject(item)} activeOpacity={0.85}>
-        <StatusBadge status={statusProp} text={badgeText} />
-        <Text style={s.code}>{item.subject_code}</Text>
+      <TouchableOpacity 
+        style={s.card} 
+        onPress={() => handleSelectSubject(item)} 
+        activeOpacity={0.8}
+      >
+        <View style={s.badgeWrapper}>
+          <StatusBadge status={statusProp} text={badgeText} />
+        </View>
+        
+        <View style={s.cardInfo}>
+          <Text style={s.code}>{item.subject_code}</Text>
+          <Text style={s.name} numberOfLines={2}>{item.subject_name}</Text>
+        </View>
+
+        <View style={s.cardFooter}>
+          <Text style={s.tapToEnter}>
+            {item.enrollmentStatus === 'approved' ? 'เข้าสู่ห้องเรียน' : 'แตะเพื่อขอเข้าร่วม'}
+          </Text>
+          
+        </View>
       </TouchableOpacity>
     );
   };
@@ -125,22 +142,27 @@ export default function ClassScreen() {
 
         {/* Header */}
         <View style={s.header}>
-          <Image source={require('../assets/image.png')} style={{ width: 60, height: 60 }} resizeMode="contain" />
-          <Text style={s.headerTitle}>Class</Text>
+          <View style={s.headerLeft}>
+            <Image source={require('../assets/image.png')} style={s.logo} resizeMode="contain" />
+            <Text style={s.headerTitle}>Class</Text>
+          </View>
           <TouchableOpacity style={s.bellBtn} onPress={() => navigation.navigate('Notifications')}>
-            <Ionicons name="notifications-outline" size={22} color={theme.icon} />
+            <Ionicons name="notifications" size={24} color={theme.accent} />
             <View style={s.dot} />
           </TouchableOpacity>
         </View>
 
-        <Text style={s.welcomeText}>Welcome to class...</Text>
+        <View style={s.subHeader}>
+          <Text style={s.welcomeText}>Welcome to class</Text>
+          <Text style={s.subWelcomeText}>Find your study partners today.</Text>
+        </View>
 
         {/* Search */}
         <View style={s.searchContainer}>
           <Ionicons name="search" size={20} color={theme.textMuted} style={{ marginRight: 10 }} />
           <TextInput
             style={s.searchInput}
-            placeholder="Search"
+            placeholder="Search by code or name..."
             placeholderTextColor={theme.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -149,7 +171,9 @@ export default function ClassScreen() {
 
         {/* Grid */}
         {loading ? (
-          <ActivityIndicator size="large" color={theme.button} style={{ marginTop: 24 }} />
+          <View style={s.center}>
+            <ActivityIndicator size="large" color={theme.button} />
+          </View>
         ) : (
           <FlatList
             data={filteredSubjects}
@@ -158,6 +182,7 @@ export default function ClassScreen() {
             numColumns={2}
             contentContainerStyle={s.list}
             columnWrapperStyle={s.row}
+            showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.button} />}
             ListEmptyComponent={<Text style={s.empty}>No classes found.</Text>}
           />
@@ -168,65 +193,146 @@ export default function ClassScreen() {
 }
 
 const makeStyles = (theme, isDark) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: 'transparent' },
-
+  safe: { flex: 1 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingTop: 15,
+    paddingBottom: 10,
   },
-  headerTitle: { fontSize: 28, fontWeight: '800', color: theme.text },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  logo: {
+    width: 45,
+    height: 45,
+    marginRight: 12,
+  },
+  headerTitle: { 
+    fontSize: 32, 
+    fontWeight: '900', 
+    color: theme.text,
+    letterSpacing: -0.5,
+  },
   bellBtn: {
-    padding: 8,
+    padding: 10,
     backgroundColor: theme.surface,
-    borderRadius: 14,
-    ...Platform.select({
-      ios:     { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: isDark ? 0.3 : 0.08, shadowRadius: 5 },
-      android: { elevation: 3 },
-    }),
+    borderRadius: 16,
+    shadowColor: theme.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
   dot: {
     position: 'absolute',
-    top: 7, right: 7,
-    width: 12, height: 12,
-    borderRadius: 50,
+    top: 10, right: 10,
+    width: 10, height: 10,
+    borderRadius: 5,
     backgroundColor: '#F43F5E',
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: theme.surface,
   },
-  welcomeText: { fontSize: 22, fontWeight: '600', color: theme.textMuted, paddingHorizontal: 20, marginTop: 10 },
+  
+  subHeader: {
+    paddingHorizontal: 20,
+    marginTop: 10,
+    marginBottom: 5,
+  },
+  welcomeText: { 
+    fontSize: 26, 
+    fontWeight: '800', 
+    color: theme.text,
+  },
+  subWelcomeText: {
+    fontSize: 15,
+    color: theme.textMuted,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.surfaceMuted,
-    borderRadius: 20,
+    backgroundColor: theme.surface,
+    borderRadius: 15,
     marginHorizontal: 20,
-    marginTop: 10,
+    marginTop: 15,
     paddingHorizontal: 15,
-    height: 40,
-  },
-  searchInput: { flex: 1, fontSize: 16, color: theme.text },
-  list: { paddingHorizontal: 15, paddingTop: 20, paddingBottom: 32 },
-  row:  { justifyContent: 'space-between' },
-  card: {
-    width: (width - 50) / 2,
-    height: 220,
-    backgroundColor: isDark ? '#4B0082' : '#4B0082',
-    borderRadius: 16,
-    marginBottom: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
+    height: 50,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: isDark ? 0.5 : 0.3,
-    shadowRadius: 5,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
-  statusBadge: { position: 'absolute', top: 10, right: 10, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  statusBadgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
-  code:  { fontSize: 24, fontWeight: '800', color: '#FFF' },
-  empty: { textAlign: 'center', color: theme.textMuted, padding: 24 },
+  searchInput: { flex: 1, fontSize: 16, color: theme.text, fontWeight: '500' },
+  
+  list: { paddingHorizontal: 15, paddingTop: 20, paddingBottom: 100 },
+  row:  { justifyContent: 'space-between' },
+  
+  card: {
+    width: (width - 45) / 2,
+    height: 190,
+    backgroundColor: '#6366F1', // Indigo Brand Color
+    borderRadius: 28,
+    marginBottom: 15,
+    padding: 18,
+    justifyContent: 'space-between',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+      },
+      android: { elevation: 10 },
+    }),
+  },
+  badgeWrapper: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  cardInfo: {
+    marginTop: 5,
+  },
+  code: { 
+    fontSize: 22, 
+    fontWeight: '900', 
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  name: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  tapToEnter: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.7)',
+    textTransform: 'uppercase',
+  },
+  empty: { 
+    textAlign: 'center', 
+    color: theme.textMuted, 
+    fontSize: 16,
+    fontWeight: '500',
+    marginTop: 50 
+  },
 });

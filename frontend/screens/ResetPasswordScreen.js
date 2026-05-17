@@ -16,49 +16,54 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import Header from '../components/Header';
 import CustomButton from '../components/CustomButton';
-import OtpInputRow from '../components/OtpInputRow';
-import { sendOtp } from '../utils/otpUtils';
 
 export default function ResetPasswordScreen({ navigation }) {
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [step, setStep] = useState(1);
-  const [otp, setOtp] = useState(['', '', '', '']);
-  const [actualOtp, setActualOtp] = useState('');
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const otpRefs = React.useRef([]);
   const [newPassword, setNewPassword] = useState('');
-  
-  const { resetPassword } = useApp();
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const { resetPassword, requestOTP, verifyOTP } = useApp();
 
   const handleContinue = async () => {
     if (step === 1) {
-      if (!email || !email.includes('@')) {
-        if (Platform.OS === 'web') {
-          window.alert("ข้อผิดพลาด\nPlease enter a valid email address");
-        } else {
-          Alert.alert("ข้อผิดพลาด", "Please enter a valid email address");
-        }
+      if (!phone || phone.length < 10) {
+        Alert.alert("Error", "Please enter a valid phone number");
         return;
       }
-      const response = await sendOtp(email);
-      if (response.success) {
-        setActualOtp(response.otp);
-        if (Platform.OS === 'web') {
-          window.alert(`รหัส OTP จำลอง\nOTP for ${email} is: ${response.otp}`);
-        } else {
-          Alert.alert("รหัส OTP จำลอง", `OTP for ${email} is: ${response.otp}`);
+      setIsProcessing(true);
+      try {
+        let formattedPhone = phone;
+        if (phone.startsWith('0')) {
+          formattedPhone = '+66' + phone.substring(1);
+        } else if (!phone.startsWith('+')) {
+          formattedPhone = '+66' + phone;
         }
+        await requestOTP(formattedPhone);
+        setPhone(formattedPhone);
         setStep(2);
+      } catch (error) {
+        Alert.alert("Error", error.message || "Failed to send OTP");
+      } finally {
+        setIsProcessing(false);
       }
     } else if (step === 2) {
       const enteredOtp = otp.join('');
-      if (enteredOtp !== actualOtp) {
-        if (Platform.OS === 'web') {
-          window.alert("ข้อผิดพลาด\nInvalid OTP");
-        } else {
-          Alert.alert("ข้อผิดพลาด", "Invalid OTP");
-        }
+      if (enteredOtp.length < 6) {
+        Alert.alert("Error", "Please enter a valid 6-digit code");
         return;
       }
-      setStep(3);
+      setIsProcessing(true);
+      try {
+        await verifyOTP(phone, enteredOtp);
+        setStep(3);
+      } catch (error) {
+        Alert.alert("Error", "Invalid OTP code");
+      } finally {
+        setIsProcessing(false);
+      }
     } else if (step === 3) {
       if (!newPassword || newPassword.length < 6) {
         if (Platform.OS === 'web') {
@@ -69,9 +74,9 @@ export default function ResetPasswordScreen({ navigation }) {
         return;
       }
       try {
-        const identity = email;
+        const identity = phone;
         await resetPassword(identity, newPassword);
-        
+
         if (Platform.OS === 'web') {
           window.alert("สำเร็จ\nรหัสผ่านของคุณถูกตั้งใหม่แล้ว!");
         } else {
@@ -96,29 +101,29 @@ export default function ResetPasswordScreen({ navigation }) {
   };
 
   const getSubtitle = () => {
-    if (step === 1) return "Enter your email to receive an OTP";
-    if (step === 2) return `Sent to: ${email}`;
+    if (step === 1) return "Enter your phone number to receive an OTP";
+    if (step === 2) return `Sent to: ${phone}`;
     return "Please enter a strong password";
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['right', 'bottom', 'left']}>
       <Header showBack={true} />
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <ScrollView 
-          contentContainerStyle={styles.content} 
+        <ScrollView
+          contentContainerStyle={styles.content}
           bounces={false}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           {/* Logo */}
-          <Image 
-            source={require('../assets/image.png')} 
-            style={styles.logo} 
-            resizeMode="contain" 
+          <Image
+            source={require('../assets/image.png')}
+            style={styles.logo}
+            resizeMode="contain"
           />
 
           {/* Text Section */}
@@ -131,29 +136,42 @@ export default function ResetPasswordScreen({ navigation }) {
           <View style={styles.inputAreaWrapper}>
             {step === 1 && (
               <View style={styles.inputContainer}>
-                <Ionicons name="mail-outline" size={20} color="#6B7280" style={{ marginRight: 10 }} />
+                <Ionicons name="call-outline" size={20} color="#6B7280" style={{ marginRight: 10 }} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Email address"
+                  placeholder="Phone number (e.g. 0812345678)"
                   placeholderTextColor="#9CA3AF"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  value={email}
-                  onChangeText={setEmail}
+                  keyboardType="phone-pad"
+                  value={phone}
+                  onChangeText={setPhone}
                   autoFocus={true}
                 />
               </View>
             )}
 
             {step === 2 && (
-              <OtpInputRow 
-                otp={otp} 
-                onChangeText={(text, index) => {
-                  const newOtp = [...otp];
-                  newOtp[index] = text;
-                  setOtp(newOtp);
-                }} 
-              />
+              <View style={styles.otpWrapper}>
+                {otp.map((digit, index) => (
+                  <TextInput
+                    key={index}
+                    ref={el => otpRefs.current[index] = el}
+                    style={styles.otpInputSmall}
+                    keyboardType="number-pad"
+                    maxLength={1}
+                    value={digit}
+                    onChangeText={text => {
+                      const newOtp = [...otp];
+                      newOtp[index] = text;
+                      setOtp(newOtp);
+                      if (text && index < 5) {
+                        otpRefs.current[index + 1].focus();
+                      } else if (!text && index > 0) {
+                        otpRefs.current[index - 1].focus();
+                      }
+                    }}
+                  />
+                ))}
+              </View>
             )}
 
             {step === 3 && (
@@ -174,18 +192,19 @@ export default function ResetPasswordScreen({ navigation }) {
           </View>
 
           {/* Action Buttons */}
-          <CustomButton 
-            title={step === 1 ? 'Send OTP' : (step === 2 ? 'Verify OTP' : 'Update Password')} 
-            onPress={handleContinue} 
+          <CustomButton
+            title={step === 1 ? 'Send OTP' : (step === 2 ? 'Verify OTP' : 'Update Password')}
+            onPress={handleContinue}
+            loading={isProcessing}
           />
 
           {/* Footer Terms */}
           <View style={{ flex: 1, minHeight: 40 }} />
           <View style={styles.footerContainer}>
-             <Text style={styles.footerText}>
-                Remember your password?{" "}
-                <Text style={styles.linkText} onPress={() => navigation.navigate('Login')}>Login here</Text>
-             </Text>
+            <Text style={styles.footerText}>
+              Remember your password?{" "}
+              <Text style={styles.linkText} onPress={() => navigation.navigate('Login')}>Login here</Text>
+            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -194,41 +213,41 @@ export default function ResetPasswordScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#FFEAF2' 
+  container: {
+    flex: 1,
+    backgroundColor: '#FFEAF2'
   },
-  content: { 
-    flexGrow: 1, 
-    paddingHorizontal: 24, 
-    paddingTop: 10, 
-    paddingBottom: 20 
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 10,
+    paddingBottom: 20
   },
-  logo: { 
-    width: 140, 
-    height: 140, 
-    alignSelf: 'center', 
-    marginBottom: 20 
+  logo: {
+    width: 140,
+    height: 140,
+    alignSelf: 'center',
+    marginBottom: 20
   },
-  textContainer: { 
-    alignItems: 'center', 
-    marginBottom: 30 
+  textContainer: {
+    alignItems: 'center',
+    marginBottom: 30
   },
-  title: { 
-    fontSize: 15, 
-    fontWeight: '700', 
-    color: '#4B5563', 
-    textAlign: 'center', 
-    marginBottom: 4 
+  title: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#4B5563',
+    textAlign: 'center',
+    marginBottom: 4
   },
-  subtitle: { 
-    fontSize: 15, 
-    fontWeight: '700', 
-    color: '#6B7280', 
-    textAlign: 'center' 
+  subtitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#6B7280',
+    textAlign: 'center'
   },
   inputAreaWrapper: {
-    zIndex: 9999, 
+    zIndex: 9999,
     position: 'relative',
     marginBottom: 16,
   },
@@ -242,19 +261,48 @@ const styles = StyleSheet.create({
     height: 56,
     paddingHorizontal: 16,
   },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: '#111827',
+  },
+  otpWrapper: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    width: '100%',
+    paddingHorizontal: 0,
+    marginBottom: 20,
+  },
+  otpInputSmall: {
+    width: 45,
+    height: 55,
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    fontSize: 24,
+    fontWeight: '800',
+    textAlign: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
 
-  footerContainer: { 
-    marginTop: 'auto', 
-    paddingBottom: 10 
+  footerContainer: {
+    marginTop: 'auto',
+    paddingBottom: 10
   },
-  footerText: { 
-    textAlign: 'center', 
-    color: '#9CA3AF', 
-    fontSize: 14, 
-    lineHeight: 18 
+  footerText: {
+    textAlign: 'center',
+    color: '#9CA3AF',
+    fontSize: 14,
+    lineHeight: 18
   },
-  linkText: { 
-    color: '#111827', 
-    fontWeight: '600' 
+  linkText: {
+    color: '#111827',
+    fontWeight: '600'
   },
 });
