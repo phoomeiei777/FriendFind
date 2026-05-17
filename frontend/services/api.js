@@ -21,6 +21,17 @@ export function getApiBase() {
     typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_API_URL;
   if (fromEnv) return fromEnv;
 
+  // ดึง IP ของเครื่องคอมพิวเตอร์แบบไดนามิกเมื่อรันผ่าน Expo Go ในวง LAN
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (hostUri) {
+    // hostUri มักจะมีรูปแบบเช่น '192.168.1.100:8081'
+    const ip = hostUri.split(':')[0];
+    // ถ้าไม่ใช่ localhost ให้ใช้ IP ของเครื่อง dev นั้นๆ
+    if (ip && ip !== '127.0.0.1' && ip !== 'localhost') {
+      return `http://${ip}:${DEFAULT_PORT}`;
+    }
+  }
+
   const extra = Constants.expoConfig?.extra || {};
 
   if (Platform.OS === 'web') {
