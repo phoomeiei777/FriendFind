@@ -1,10 +1,10 @@
 -- Insert dummy users
 INSERT IGNORE INTO users (id, username, email, password_hash, faculty, `year`, interests, profile_image_url) VALUES
-(101, 'Nico O''Reilly', 'nico@example.com', 'hashedpassword', 'Manchester, England', 1, 'Football', 'https://i.pravatar.cc/300?img=11'),
-(102, 'Sarah Smith', 'sarah@example.com', 'hashedpassword', 'Engineering', 2, 'Coding, Music', 'https://i.pravatar.cc/300?img=5'),
-(103, 'John Doe', 'john@example.com', 'hashedpassword', 'Science', 3, 'Reading, Gaming', 'https://i.pravatar.cc/300?img=33'),
-(104, 'Emma Watson', 'emma@example.com', 'hashedpassword', 'Arts', 4, 'Acting, Reading', 'https://i.pravatar.cc/300?img=9'),
-(105, 'Liam Johnson', 'liam@example.com', 'hashedpassword', 'Business', 1, 'Investing, Sports', 'https://i.pravatar.cc/300?img=12');
+(101, 'Nico O''Reilly', 'nico@example.com', '$2b$10$Qf6EpWJW2zFP9UCmDcgBoey7cbDn8xxCt5McgCl75/sCmfx2zYCv6', 'Manchester, England', 1, 'Football', 'https://i.pravatar.cc/300?img=11'),
+(102, 'Sarah Smith', 'sarah@example.com', '$2b$10$Qf6EpWJW2zFP9UCmDcgBoey7cbDn8xxCt5McgCl75/sCmfx2zYCv6', 'Engineering', 2, 'Coding, Music', 'https://i.pravatar.cc/300?img=5'),
+(103, 'John Doe', 'john@example.com', '$2b$10$Qf6EpWJW2zFP9UCmDcgBoey7cbDn8xxCt5McgCl75/sCmfx2zYCv6', 'Science', 3, 'Reading, Gaming', 'https://i.pravatar.cc/300?img=33'),
+(104, 'Emma Watson', 'emma@example.com', '$2b$10$Qf6EpWJW2zFP9UCmDcgBoey7cbDn8xxCt5McgCl75/sCmfx2zYCv6', 'Arts', 4, 'Acting, Reading', 'https://i.pravatar.cc/300?img=9'),
+(105, 'Liam Johnson', 'liam@example.com', '$2b$10$Qf6EpWJW2zFP9UCmDcgBoey7cbDn8xxCt5McgCl75/sCmfx2zYCv6', 'Business', 1, 'Investing, Sports', 'https://i.pravatar.cc/300?img=12');
 
 -- Make sure subjects exist
 INSERT IGNORE INTO subjects (id, subject_code, subject_name) VALUES
